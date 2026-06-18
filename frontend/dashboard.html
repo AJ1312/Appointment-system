@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Dashboard – MediCare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="dash-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-mark"></div>
+            <span class="sidebar-brand-name">MediCare</span>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="sidebar-section-label">Navigation</span>
+            <button class="sidebar-btn active" id="nav-overview" onclick="showSection('overview')">Overview</button>
+            <button class="sidebar-btn" id="nav-book" onclick="showSection('book')">Book Appointment</button>
+            <button class="sidebar-btn" id="nav-appointments" onclick="showSection('appointments')">My Appointments</button>
+            <button class="sidebar-btn" id="nav-queue" onclick="showSection('queue')">Queue Status</button>
+            <button class="sidebar-btn" id="nav-recommend" onclick="showSection('recommend')">AI Doctor Finder</button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user" id="sidebarUser"></div>
+            <button class="sidebar-btn" onclick="logout()" style="color:var(--danger)">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="dash-main">
+
+        <!-- OVERVIEW -->
+        <div id="section-overview" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Overview</h1>
+                <p class="dash-subtitle" id="welcomeMsg">Loading your dashboard...</p>
+            </div>
+            <div class="stats-grid">
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="totalAppts">—</div>
+                    <div class="stat-card-label">Total Appointments</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="completedAppts">—</div>
+                    <div class="stat-card-label">Completed</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="upcomingAppts">—</div>
+                    <div class="stat-card-label">Upcoming</div>
+                </div>
+            </div>
+
+            <h2 style="font-size:1rem;font-weight:600;color:var(--text-secondary);margin-bottom:1rem;text-transform:uppercase;letter-spacing:0.06em">Recent Appointments</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Doctor</th>
+                            <th>Specialization</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Token</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentTable">
+                        <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- BOOK APPOINTMENT -->
+        <div id="section-book" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Book Appointment</h1>
+                <p class="dash-subtitle">Select a doctor and your preferred date</p>
+            </div>
+            <div class="card" style="padding:2rem;max-width:560px">
+                <div id="bookAlert" style="display:none"></div>
+                <form onsubmit="bookAppointment(event)">
+                    <div class="field">
+                        <label class="field-label">Filter by Specialization</label>
+                        <select id="specSelect" class="field-select" onchange="loadDoctorsBySpec()">
+                            <option value="">All Specializations</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Doctor <span style="color:var(--danger)">*</span></label>
+                        <select id="doctorSelect" class="field-select" required>
+                            <option value="">Select a doctor</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Appointment Date <span style="color:var(--danger)">*</span></label>
+                        <input type="date" id="apptDate" class="field-input" required>
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Reason / Symptoms</label>
+                        <textarea id="apptReason" class="field-textarea" placeholder="Briefly describe your symptoms or reason for this visit..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" id="bookBtn">Confirm Booking</button>
+                </form>
+            </div>
+
+            <div id="tokenResult" style="display:none;margin-top:1.5rem;max-width:380px">
+                <div class="card token-card fade-in">
+                    <div style="font-size:0.8rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--success);margin-bottom:0.75rem">Booking Confirmed</div>
+                    <div class="token-number" id="resToken">—</div>
+                    <div class="token-lbl">Queue Token</div>
+                    <div class="token-meta">
+                        <div>
+                            <div class="token-meta-val" id="resPos">—</div>
+                            <div class="token-meta-key">Queue Position</div>
+                        </div>
+                        <div>
+                            <div class="token-meta-val" id="resWait">—</div>
+                            <div class="token-meta-key">Est. Wait (min)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MY APPOINTMENTS -->
+        <div id="section-appointments" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">My Appointments</h1>
+                <p class="dash-subtitle">Complete appointment history</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Doctor</th><th>Specialization</th>
+                            <th>Date</th><th>Status</th><th>Token</th><th>Est. Wait</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allApptTable">
+                        <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- QUEUE STATUS -->
+        <div id="section-queue" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Queue Status</h1>
+                <p class="dash-subtitle">Enter your appointment ID to check your current position</p>
+            </div>
+            <div style="display:flex;gap:0.75rem;margin-bottom:2rem;flex-wrap:wrap">
+                <input type="number" id="apptIdInput" class="field-input" style="max-width:200px" placeholder="Appointment ID">
+                <button class="btn btn-primary" onclick="checkQueue()">Check Status</button>
+            </div>
+            <div id="queueStatusResult"></div>
+        </div>
+
+        <!-- AI DOCTOR FINDER -->
+        <div id="section-recommend" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">AI Doctor Finder</h1>
+                <p class="dash-subtitle">Describe your symptoms and get a specialist recommendation</p>
+            </div>
+            <div class="card" style="padding:1.75rem;max-width:580px;margin-bottom:2rem">
+                <div class="field" style="margin-bottom:0">
+                    <label class="field-label">Symptoms</label>
+                    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.4rem">
+                        <input type="text" id="symptomText" class="field-input" placeholder="e.g. chest pain, shortness of breath..." style="flex:1;min-width:200px">
+                        <button class="btn btn-primary" onclick="getRecommendations()" id="recBtn">Analyse</button>
+                    </div>
+                </div>
+                <div id="aiSpecResult" style="display:none;margin-top:1rem" class="alert alert-info"></div>
+            </div>
+            <div id="recDoctorsGrid" class="doctors-grid"></div>
+        </div>
+
+    </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+const user = Session.getUser();
+if (!user || user.role !== 'PATIENT') window.location.href = 'login.html';
+
+document.getElementById('welcomeMsg').textContent = 'Good to see you, ' + user.name;
+document.getElementById('sidebarUser').textContent = user.name;
+
+// Set min date
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('apptDate').min = today;
+
+function showSection(sec) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('section-' + sec).style.display = 'block';
+    document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-' + sec).classList.add('active');
+    if (sec === 'overview') loadMyAppointments('overview');
+    if (sec === 'appointments') loadMyAppointments('all');
+    if (sec === 'book') loadSpecializations();
+}
+
+async function loadMyAppointments(mode) {
+    try {
+        const data = await Api.get('/appointments/patient/' + user.userId);
+        const appts = data.data || [];
+        const completed = appts.filter(a => a.status === 'COMPLETED').length;
+        const upcoming  = appts.filter(a => a.status === 'BOOKED').length;
+        document.getElementById('totalAppts').textContent     = appts.length;
+        document.getElementById('completedAppts').textContent = completed;
+        document.getElementById('upcomingAppts').textContent  = upcoming;
+
+        const makeRow = a => `
+            <tr>
+                <td style="color:var(--text-primary)">${a.doctorName}</td>
+                <td><span class="text-accent">${a.specialization || '—'}</span></td>
+                <td>${formatDate(a.appointmentDate)}</td>
+                <td>${statusBadge(a.status)}</td>
+                <td><span class="badge badge-token">T-${pad(a.tokenNumber)}</span></td>
+            </tr>`;
+
+        if (mode === 'overview') {
+            document.getElementById('recentTable').innerHTML =
+                appts.slice(0,5).map(makeRow).join('') ||
+                '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No appointments yet</td></tr>';
+        }
+        if (mode === 'all') {
+            document.getElementById('allApptTable').innerHTML =
+                appts.map(a => `
+                    <tr>
+                        <td>#${a.appointmentId}</td>
+                        <td style="color:var(--text-primary)">${a.doctorName}</td>
+                        <td>${a.specialization || '—'}</td>
+                        <td>${formatDate(a.appointmentDate)}</td>
+                        <td>${statusBadge(a.status)}</td>
+                        <td><span class="badge badge-token">T-${pad(a.tokenNumber)}</span></td>
+                        <td>${a.estimatedWaitMinutes != null ? a.estimatedWaitMinutes + ' min' : '—'}</td>
+                    </tr>`).join('') ||
+                '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No appointments</td></tr>';
+        }
+    } catch {
+        const el = document.getElementById(mode === 'all' ? 'allApptTable' : 'recentTable');
+        if (el) el.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger)">Backend not connected</td></tr>';
+    }
+}
+
+async function loadSpecializations() {
+    try {
+        const specs = await Api.get('/specializations');
+        const sel = document.getElementById('specSelect');
+        sel.innerHTML = '<option value="">All Specializations</option>';
+        (specs || []).forEach(s => sel.innerHTML += `<option value="${s.specializationId}">${s.name}</option>`);
+        loadDoctorsBySpec();
+    } catch {}
+}
+
+async function loadDoctorsBySpec() {
+    const specId = document.getElementById('specSelect').value;
+    const path   = specId ? `/doctors/specialization/${specId}` : '/doctors';
+    try {
+        const data    = await Api.get(path);
+        const doctors = data.data || data || [];
+        const sel     = document.getElementById('doctorSelect');
+        sel.innerHTML = '<option value="">Select a doctor</option>';
+        doctors.forEach(d => sel.innerHTML += `<option value="${d.doctorId}">${d.name} — ${d.specializationName || ''}</option>`);
+    } catch {}
+}
+
+async function bookAppointment(e) {
+    e.preventDefault();
+    const alertDiv = document.getElementById('bookAlert');
+    alertDiv.style.display = 'none';
+    setLoading('bookBtn', true);
+    try {
+        const data = await Api.post('/appointments', {
+            patientId:       user.userId,
+            doctorId:        parseInt(document.getElementById('doctorSelect').value),
+            appointmentDate: document.getElementById('apptDate').value,
+            reason:          document.getElementById('apptReason').value
+        });
+        if (data.success) {
+            const a = data.data;
+            document.getElementById('resToken').textContent = 'T-' + pad(a.tokenNumber);
+            document.getElementById('resPos').textContent   = a.queuePosition;
+            document.getElementById('resWait').textContent  = a.estimatedWaitMinutes;
+            document.getElementById('tokenResult').style.display = 'block';
+            showToast('Appointment confirmed. Token: T-' + pad(a.tokenNumber), 'success');
+        } else {
+            alertDiv.className = 'alert alert-error';
+            alertDiv.textContent = data.message;
+            alertDiv.style.display = 'block';
+        }
+    } catch {
+        alertDiv.className = 'alert alert-error';
+        alertDiv.textContent = 'Connection error.';
+        alertDiv.style.display = 'block';
+    }
+    setLoading('bookBtn', false);
+}
+
+async function checkQueue() {
+    const apptId = document.getElementById('apptIdInput').value;
+    if (!apptId) return;
+    const result = document.getElementById('queueStatusResult');
+    result.innerHTML = '';
+    try {
+        const data = await Api.get('/queue/appointment/' + apptId);
+        if (data.success) {
+            const q = data.data;
+            result.innerHTML = `
+                <div class="card token-card fade-in" style="max-width:360px">
+                    <div class="token-number">T-${pad(q.tokenNumber)}</div>
+                    <div class="token-lbl">${statusBadge(q.queueStatus)}</div>
+                    <div class="token-meta" style="margin-top:1.25rem">
+                        <div>
+                            <div class="token-meta-val">${q.queuePosition}</div>
+                            <div class="token-meta-key">Position</div>
+                        </div>
+                        <div>
+                            <div class="token-meta-val">${q.estimatedWaitMinutes ?? '—'}</div>
+                            <div class="token-meta-key">Wait (min)</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-muted)">Doctor: ${q.doctorName}</div>
+                </div>`;
+        } else {
+            result.innerHTML = '<div class="alert alert-error">No queue entry found for this appointment ID.</div>';
+        }
+    } catch {
+        result.innerHTML = '<div class="alert alert-error">Connection error.</div>';
+    }
+}
+
+async function getRecommendations() {
+    const symptoms = document.getElementById('symptomText').value.trim();
+    if (!symptoms) return;
+    setLoading('recBtn', true);
+    try {
+        const data    = await Api.get('/doctors/recommend?symptoms=' + encodeURIComponent(symptoms));
+        const doctors = data.data || [];
+        const specEl  = document.getElementById('aiSpecResult');
+        specEl.style.display = 'block';
+        specEl.textContent   = doctors.length
+            ? `Recommended specialization: ${doctors[0].specializationName} — ${doctors.length} doctor(s) available`
+            : 'No specialist matched. Showing General Medicine doctors.';
+
+        document.getElementById('recDoctorsGrid').innerHTML = doctors.map(d => `
+            <div class="card doctor-card fade-in">
+                <div class="doctor-avatar"><span class="doctor-initials">${initials(d.name)}</span></div>
+                <div class="doctor-name">${d.name}</div>
+                <div class="doctor-spec">${d.specializationName}</div>
+                <div class="doctor-meta">${d.qualification || 'MBBS'}</div>
+                <div class="doctor-meta">${d.experienceYears ?? '—'} yrs experience &nbsp;·&nbsp; ${d.consultationDuration || 15} min/patient</div>
+                <button class="btn btn-outline btn-sm" style="margin-top:0.5rem" onclick="goBook(${d.doctorId})">Book Appointment</button>
+            </div>`).join('');
+    } catch {}
+    setLoading('recBtn', false);
+}
+
+function goBook(docId) {
+    showSection('book');
+    setTimeout(() => {
+        const sel = document.getElementById('doctorSelect');
+        for (const opt of sel.options) if (opt.value == docId) { opt.selected = true; break; }
+    }, 600);
+}
+
+function pad(n) { return n != null ? String(n).padStart(2,'0') : '—'; }
+function initials(name) { return name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase(); }
+
+function logout() { Session.clear(); window.location.href = 'index.html'; }
+
+loadMyAppointments('overview');
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctors – MediCare</title>
+    <meta name="description" content="Browse specialists and book an appointment on MediCare">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">
+        <div class="nav-brand-mark"></div>
+        <span class="nav-title">MediCare</span>
+    </div>
+    <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="doctors.html" class="nav-link active">Doctors</a></li>
+        <li><a href="queue.html" class="nav-link">Queue Status</a></li>
+    </ul>
+    <div class="nav-actions">
+        <a href="login.html" class="btn btn-ghost" id="loginBtn">Sign In</a>
+        <a href="dashboard.html" class="btn btn-primary">Dashboard</a>
+    </div>
+</nav>
+
+<div style="padding: 6.5rem 3rem 4rem; max-width: 1200px; margin: 0 auto;">
+    <div style="margin-bottom:2.5rem">
+        <span class="label">Medical Staff</span>
+        <h1 style="font-size:1.8rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:1.25rem">Our Specialists</h1>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <input type="text" id="searchInput" class="field-input" style="max-width:260px" placeholder="Search by name or specialization..." oninput="filterDoctors()">
+            <select id="specFilter" class="field-select" style="max-width:220px" onchange="filterDoctors()">
+                <option value="">All Specializations</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="doctorsGrid" class="doctors-grid">
+        <div style="text-align:center;padding:3rem;color:var(--text-muted);grid-column:1/-1">Loading doctors...</div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-brand">MediCare</div>
+    <p>AI-Assisted Medical Appointment System &mdash; Hindalco 2026</p>
+</footer>
+
+<script src="app.js"></script>
+<script>
+let allDoctors = [];
+
+async function init() {
+    await loadSpecsFilter();
+    await loadAllDoctors();
+}
+
+async function loadSpecsFilter() {
+    try {
+        const specs = await Api.get('/specializations');
+        const sel   = document.getElementById('specFilter');
+        (specs || []).forEach(s => sel.innerHTML += `<option value="${s.specializationId}">${s.name}</option>`);
+    } catch {}
+}
+
+async function loadAllDoctors() {
+    try {
+        const data  = await Api.get('/doctors');
+        allDoctors  = data.data || [];
+        renderDoctors(allDoctors);
+    } catch {
+        document.getElementById('doctorsGrid').innerHTML =
+            '<div style="text-align:center;padding:3rem;color:var(--danger);grid-column:1/-1">Backend not connected. Start the Spring Boot server first.</div>';
+    }
+}
+
+function filterDoctors() {
+    const specId = document.getElementById('specFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    let list     = allDoctors;
+    if (specId) list = list.filter(d => d.specializationId == specId);
+    if (search) list = list.filter(d =>
+        d.name.toLowerCase().includes(search) ||
+        (d.specializationName || '').toLowerCase().includes(search)
+    );
+    renderDoctors(list);
+}
+
+function renderDoctors(doctors) {
+    const grid = document.getElementById('doctorsGrid');
+    if (!doctors.length) {
+        grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted);grid-column:1/-1">No doctors found matching your search.</div>';
+        return;
+    }
+    grid.innerHTML = doctors.map(d => {
+        const ini = d.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+        return `
+        <div class="card doctor-card fade-in">
+            <div class="doctor-avatar"><span class="doctor-initials">${ini}</span></div>
+            <div class="doctor-name">${d.name}</div>
+            <div class="doctor-spec">${d.specializationName || 'General'}</div>
+            <div class="doctor-meta">${d.qualification || 'MBBS'}</div>
+            <div class="doctor-meta">${d.experienceYears ?? '—'} yrs experience</div>
+            <div class="doctor-meta">${d.consultationDuration || 15} min per consultation</div>
+            <a href="login.html" class="btn btn-outline btn-sm" style="margin-top:0.75rem">Book Appointment</a>
+        </div>`;
+    }).join('');
+}
+
+init();
+updateNav();
+</script>
+</body>
+</html>

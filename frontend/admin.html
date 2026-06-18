@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard – MediCare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="dash-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-mark"></div>
+            <span class="sidebar-brand-name">Admin Panel</span>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="sidebar-section-label">Manage</span>
+            <button class="sidebar-btn active" id="nav-overview"     onclick="showSection('overview')">Dashboard</button>
+            <button class="sidebar-btn"         id="nav-patients"    onclick="showSection('patients')">Patients</button>
+            <button class="sidebar-btn"         id="nav-doctors"     onclick="showSection('doctors')">Doctors</button>
+            <button class="sidebar-btn"         id="nav-appointments" onclick="showSection('appointments')">Appointments</button>
+            <button class="sidebar-btn"         id="nav-queue"       onclick="showSection('queue')">Live Queue</button>
+            <span class="sidebar-section-label" style="margin-top:0.5rem">Actions</span>
+            <button class="sidebar-btn"         id="nav-addDoctor"   onclick="showSection('addDoctor')">Add Doctor</button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user" id="adminUser"></div>
+            <button class="sidebar-btn" onclick="logout()" style="color:var(--danger)">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+
+        <!-- OVERVIEW -->
+        <div id="section-overview" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Dashboard</h1>
+                <p class="dash-subtitle">System-wide analytics and controls</p>
+            </div>
+            <div class="stats-grid">
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="totalPatients">—</div>
+                    <div class="stat-card-label">Total Patients</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="totalDoctors">—</div>
+                    <div class="stat-card-label">Doctors</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="totalAppts">—</div>
+                    <div class="stat-card-label">Total Appointments</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-card-icon">
+                        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="stat-card-val" id="todayAppts">—</div>
+                    <div class="stat-card-label">Today's Appointments</div>
+                </div>
+            </div>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+                <button class="btn btn-primary" onclick="showSection('addDoctor')">Add Doctor</button>
+                <button class="btn btn-ghost" onclick="showSection('appointments')">View Appointments</button>
+                <button class="btn btn-ghost" onclick="showSection('queue')">Live Queue</button>
+            </div>
+        </div>
+
+        <!-- PATIENTS -->
+        <div id="section-patients" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Patients</h1>
+                <p class="dash-subtitle">All registered patients</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Gender</th><th>Registered</th></tr></thead>
+                    <tbody id="patientsTable"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- DOCTORS -->
+        <div id="section-doctors" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Doctors</h1>
+                <p class="dash-subtitle">All registered medical staff</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Name</th><th>Specialization</th><th>Email</th><th>Experience</th><th>Consult Time</th><th>Action</th></tr></thead>
+                    <tbody id="doctorsTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- APPOINTMENTS -->
+        <div id="section-appointments" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Appointments</h1>
+                <p class="dash-subtitle">All appointments across the system</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Date</th><th>Status</th><th>Token</th><th>Update Status</th></tr></thead>
+                    <tbody id="allApptsTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- QUEUE -->
+        <div id="section-queue" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Live Queue</h1>
+                <p class="dash-subtitle">Patients currently waiting</p>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Queue ID</th><th>Token</th><th>Patient</th><th>Doctor</th><th>Position</th><th>Est. Wait</th><th>Status</th></tr></thead>
+                    <tbody id="queueTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ADD DOCTOR -->
+        <div id="section-addDoctor" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Add Doctor</h1>
+                <p class="dash-subtitle">Register a new doctor in the system</p>
+            </div>
+            <div class="card" style="padding:2rem;max-width:560px">
+                <div id="addDoctorAlert" style="display:none"></div>
+                <form onsubmit="addDoctor(event)">
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Full Name</label>
+                            <input type="text" id="docName" class="field-input" placeholder="Dr. Full Name" required>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Email</label>
+                            <input type="email" id="docEmail" class="field-input" placeholder="doctor@hospital.com" required>
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Phone</label>
+                            <input type="tel" id="docPhone" class="field-input" placeholder="9876543210">
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Qualification</label>
+                            <input type="text" id="docQual" class="field-input" placeholder="MBBS, MD">
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label class="field-label">Specialization</label>
+                            <select id="docSpec" class="field-select" required>
+                                <option value="">Select specialization</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label class="field-label">Experience (years)</label>
+                            <input type="number" id="docExp" class="field-input" placeholder="5" min="0">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label class="field-label">Consultation Duration (minutes)</label>
+                        <input type="number" id="docConsult" class="field-input" value="15" min="5">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full" id="addDocBtn">Add Doctor</button>
+                </form>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="app.js"></script>
+<script>
+const user = Session.getUser();
+if (!user || user.role !== 'ADMIN') window.location.href = 'login.html';
+document.getElementById('adminUser').textContent = user.name;
+
+function showSection(sec) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('section-' + sec).style.display = 'block';
+    document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-' + sec).classList.add('active');
+    const actions = {
+        overview: loadStats, patients: loadPatients,
+        doctors: loadDoctors, appointments: loadAppointments,
+        queue: loadQueue, addDoctor: loadSpecsForForm
+    };
+    if (actions[sec]) actions[sec]();
+}
+
+async function loadStats() {
+    try {
+        const d = await Api.get('/admin/dashboard/stats');
+        if (d.success) {
+            document.getElementById('totalPatients').textContent = d.data.totalPatients;
+            document.getElementById('totalDoctors').textContent  = d.data.totalDoctors;
+            document.getElementById('totalAppts').textContent    = d.data.totalAppointments;
+            document.getElementById('todayAppts').textContent    = d.data.appointmentsToday;
+        }
+    } catch {}
+}
+
+async function loadPatients() {
+    try {
+        const d = await Api.get('/patients');
+        const rows = (d.data || []).map(p => `
+            <tr>
+                <td>#${p.patientId}</td>
+                <td style="color:var(--text-primary)">${p.name}</td>
+                <td>${p.email}</td>
+                <td>${p.phone || '—'}</td>
+                <td>${p.gender || '—'}</td>
+                <td>${formatDate(p.dateOfBirth) || '—'}</td>
+            </tr>`).join('');
+        document.getElementById('patientsTable').innerHTML = rows ||
+            '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No patients found</td></tr>';
+    } catch {}
+}
+
+async function loadDoctors() {
+    try {
+        const d = await Api.get('/doctors');
+        const rows = (d.data || []).map(doc => `
+            <tr>
+                <td>#${doc.doctorId}</td>
+                <td style="color:var(--text-primary)">${doc.name}</td>
+                <td><span class="text-accent">${doc.specializationName || '—'}</span></td>
+                <td>${doc.email}</td>
+                <td>${doc.experienceYears ?? '—'} yrs</td>
+                <td>${doc.consultationDuration || 15} min</td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteDoctor(${doc.doctorId})">Remove</button></td>
+            </tr>`).join('');
+        document.getElementById('doctorsTable').innerHTML = rows ||
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No doctors found</td></tr>';
+    } catch {}
+}
+
+async function deleteDoctor(id) {
+    if (!confirm('Remove this doctor from the system?')) return;
+    showToast('Feature note: DELETE endpoint needs backend wiring', 'info');
+}
+
+async function loadAppointments() {
+    try {
+        const d = await Api.get('/appointments');
+        const rows = (d.data || []).map(a => `
+            <tr>
+                <td>#${a.appointmentId}</td>
+                <td style="color:var(--text-primary)">${a.patientName}</td>
+                <td>${a.doctorName}</td>
+                <td>${formatDate(a.appointmentDate)}</td>
+                <td>${statusBadge(a.status)}</td>
+                <td><span class="badge badge-token">T-${String(a.tokenNumber || '—').padStart(2,'0')}</span></td>
+                <td>
+                    <select class="field-select" style="padding:0.3rem 0.5rem;font-size:0.78rem" onchange="updateStatus(${a.appointmentId}, this.value)">
+                        <option value="">Change</option>
+                        <option value="BOOKED">Booked</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </td>
+            </tr>`).join('');
+        document.getElementById('allApptsTable').innerHTML = rows ||
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No appointments</td></tr>';
+    } catch {}
+}
+
+async function updateStatus(id, status) {
+    if (!status) return;
+    try {
+        await Api.put('/appointments/' + id + '/status', { status });
+        showToast('Status updated to ' + status, 'success');
+        loadAppointments();
+    } catch {}
+}
+
+async function loadQueue() {
+    try {
+        const d = await Api.get('/queue/waiting');
+        const rows = (d.data || []).map(q => `
+            <tr>
+                <td>#${q.queueId}</td>
+                <td><span class="badge badge-token">T-${String(q.tokenNumber).padStart(2,'0')}</span></td>
+                <td style="color:var(--text-primary)">${q.patientName}</td>
+                <td>${q.doctorName}</td>
+                <td>${q.queuePosition}</td>
+                <td>${q.estimatedWaitMinutes ?? '—'} min</td>
+                <td>${statusBadge(q.queueStatus)}</td>
+            </tr>`).join('');
+        document.getElementById('queueTable').innerHTML = rows ||
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Queue is empty</td></tr>';
+    } catch {}
+}
+
+async function loadSpecsForForm() {
+    try {
+        const specs = await Api.get('/specializations');
+        const sel   = document.getElementById('docSpec');
+        sel.innerHTML = '<option value="">Select specialization</option>';
+        (specs || []).forEach(s => sel.innerHTML += `<option value="${s.specializationId}">${s.name}</option>`);
+    } catch {}
+}
+
+async function addDoctor(e) {
+    e.preventDefault();
+    const alertDiv = document.getElementById('addDoctorAlert');
+    alertDiv.style.display = 'none';
+    setLoading('addDocBtn', true);
+    try {
+        const data = await Api.post('/doctors', {
+            name:                document.getElementById('docName').value,
+            email:               document.getElementById('docEmail').value,
+            phone:               document.getElementById('docPhone').value,
+            qualification:       document.getElementById('docQual').value,
+            specializationId:    parseInt(document.getElementById('docSpec').value),
+            experienceYears:     parseInt(document.getElementById('docExp').value) || null,
+            consultationDuration: parseInt(document.getElementById('docConsult').value) || 15
+        });
+        if (data.success) {
+            alertDiv.className  = 'alert alert-success';
+            alertDiv.textContent = 'Doctor added successfully.';
+            alertDiv.style.display = 'block';
+            showToast('Doctor added', 'success');
+            e.target.reset();
+        } else {
+            alertDiv.className  = 'alert alert-error';
+            alertDiv.textContent = data.message;
+            alertDiv.style.display = 'block';
+        }
+    } catch {
+        alertDiv.className  = 'alert alert-error';
+        alertDiv.textContent = 'Connection error.';
+        alertDiv.style.display = 'block';
+    }
+    setLoading('addDocBtn', false);
+}
+
+function logout() { Session.clear(); window.location.href = 'index.html'; }
+
+loadStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In – MediCare</title>
+    <meta name="description" content="Sign in to MediCare">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">
+        <div class="nav-brand-mark"></div>
+        <span class="nav-title">MediCare</span>
+    </div>
+    <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+    </ul>
+    <div class="nav-actions">
+        <a href="register.html" class="btn btn-primary">Register</a>
+    </div>
+</nav>
+
+<div class="page-wrap">
+    <div class="card form-box fade-in">
+        <h1 class="form-heading">Sign In</h1>
+        <p class="form-subheading">Access your MediCare account</p>
+
+        <div id="loginAlert" style="display:none"></div>
+
+        <div class="tabs">
+            <button class="tab active" id="tabPatient" onclick="setRole('patient', this)">Patient</button>
+            <button class="tab" id="tabAdmin" onclick="setRole('admin', this)">Admin</button>
+        </div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="field">
+                <label class="field-label" for="email">Email Address</label>
+                <input type="email" id="email" class="field-input" placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="field">
+                <label class="field-label" for="password">Password</label>
+                <input type="password" id="password" class="field-input" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Sign In</button>
+        </form>
+
+        <div class="form-footer">
+            No account? <a href="register.html" class="form-link">Create one</a>
+        </div>
+        <div class="form-footer" style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-muted)">
+            Demo admin &mdash; admin@medicare.com / admin123
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+let currentRole = 'patient';
+
+function setRole(role, el) {
+    currentRole = role;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const alertDiv = document.getElementById('loginAlert');
+    alertDiv.style.display = 'none';
+    setLoading('loginBtn', true);
+
+    try {
+        const endpoint = currentRole === 'admin' ? '/admin/login' : '/patients/login';
+        const data = await Api.post(endpoint, {
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value
+        });
+        if (data.success) {
+            Session.setUser(data.data);
+            showToast('Welcome back, ' + data.data.name, 'success');
+            setTimeout(() => {
+                window.location.href = currentRole === 'admin' ? 'admin.html' : 'dashboard.html';
+            }, 700);
+        } else {
+            alertDiv.className = 'alert alert-error';
+            alertDiv.textContent = data.message || 'Invalid credentials.';
+            alertDiv.style.display = 'block';
+        }
+    } catch {
+        alertDiv.className = 'alert alert-error';
+        alertDiv.textContent = 'Unable to connect. Ensure the backend server is running on port 8080.';
+        alertDiv.style.display = 'block';
+    }
+    setLoading('loginBtn', false);
+}
+</script>
+</body>
+</html>

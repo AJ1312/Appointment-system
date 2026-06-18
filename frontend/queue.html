@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Queue Status – MediCare</title>
+    <meta name="description" content="Track your appointment queue position on MediCare">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-brand">
+        <div class="nav-brand-mark"></div>
+        <span class="nav-title">MediCare</span>
+    </div>
+    <ul class="nav-links">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="doctors.html" class="nav-link">Doctors</a></li>
+        <li><a href="queue.html" class="nav-link active">Queue Status</a></li>
+    </ul>
+    <div class="nav-actions">
+        <a href="login.html" class="btn btn-ghost" id="loginBtn">Sign In</a>
+    </div>
+</nav>
+
+<div style="padding: 6.5rem 3rem 4rem; max-width: 860px; margin: 0 auto;">
+
+    <!-- Track your token -->
+    <div style="margin-bottom:2.5rem">
+        <span class="label">Queue Tracking</span>
+        <h1 style="font-size:1.8rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.4rem">Queue Status</h1>
+        <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.75rem">Check your real-time queue position using your appointment ID.</p>
+
+        <div class="card" style="padding:1.75rem;margin-bottom:2rem">
+            <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.75rem">Track Your Appointment</p>
+            <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+                <input type="number" id="trackId" class="field-input" style="max-width:200px" placeholder="Appointment ID">
+                <button class="btn btn-primary" onclick="trackQueue()">Check Status</button>
+            </div>
+            <div id="trackResult" style="margin-top:1.5rem"></div>
+        </div>
+    </div>
+
+    <!-- Live waiting queue table -->
+    <h2 style="font-size:1rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-secondary);margin-bottom:1rem">Current Waiting Queue</h2>
+    <div class="table-wrap" style="margin-bottom:2.5rem">
+        <table>
+            <thead>
+                <tr><th>Token</th><th>Patient</th><th>Doctor</th><th>Position</th><th>Est. Wait</th><th>Status</th></tr>
+            </thead>
+            <tbody id="queueBody">
+                <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading queue...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- AI wait prediction -->
+    <div class="card" style="padding:1.75rem">
+        <span class="label">AI Feature</span>
+        <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.35rem">Wait Time Prediction</h3>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem">
+            Enter a doctor ID to get an AI-predicted wait time based on current queue depth and consultation patterns.
+        </p>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+            <input type="number" id="predictDocId" class="field-input" style="max-width:180px" placeholder="Doctor ID">
+            <button class="btn btn-primary" onclick="predictWait()">Predict Wait</button>
+        </div>
+        <div id="predictResult" style="margin-top:1rem"></div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-brand">MediCare</div>
+    <p>AI-Assisted Medical Appointment System &mdash; Hindalco 2026</p>
+</footer>
+
+<script src="app.js"></script>
+<script>
+async function loadWaitingQueue() {
+    try {
+        const data  = await Api.get('/queue/waiting');
+        const queue = data.data || [];
+        document.getElementById('queueBody').innerHTML = queue.map(q => `
+            <tr>
+                <td><span class="badge badge-token">T-${String(q.tokenNumber).padStart(2,'0')}</span></td>
+                <td style="color:var(--text-primary)">${q.patientName}</td>
+                <td>${q.doctorName}</td>
+                <td>#${q.queuePosition}</td>
+                <td>${q.estimatedWaitMinutes ?? '—'} min</td>
+                <td>${statusBadge(q.queueStatus)}</td>
+            </tr>`).join('') ||
+            '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Queue is empty</td></tr>';
+    } catch {
+        document.getElementById('queueBody').innerHTML =
+            '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Backend not connected</td></tr>';
+    }
+}
+
+async function trackQueue() {
+    const id     = document.getElementById('trackId').value;
+    const result = document.getElementById('trackResult');
+    if (!id) return;
+    result.innerHTML = '';
+    try {
+        const data = await Api.get('/queue/appointment/' + id);
+        if (data.success) {
+            const q = data.data;
+            result.innerHTML = `
+                <div class="card token-card fade-in" style="max-width:340px">
+                    <div class="token-number">T-${String(q.tokenNumber).padStart(2,'0')}</div>
+                    <div class="token-lbl">${statusBadge(q.queueStatus)}</div>
+                    <div class="token-meta" style="margin-top:1.25rem">
+                        <div>
+                            <div class="token-meta-val">${q.queuePosition}</div>
+                            <div class="token-meta-key">Position</div>
+                        </div>
+                        <div>
+                            <div class="token-meta-val">${q.estimatedWaitMinutes ?? '—'}</div>
+                            <div class="token-meta-key">Wait (min)</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-muted)">
+                        Doctor: ${q.doctorName} &nbsp;&middot;&nbsp; Patient: ${q.patientName}
+                    </div>
+                </div>`;
+        } else {
+            result.innerHTML = '<div class="alert alert-error">No queue entry found for appointment #' + id + '</div>';
+        }
+    } catch {
+        result.innerHTML = '<div class="alert alert-error">Connection error.</div>';
+    }
+}
+
+async function predictWait() {
+    const docId  = document.getElementById('predictDocId').value;
+    const result = document.getElementById('predictResult');
+    if (!docId) return;
+    try {
+        const data = await Api.get('/queue/predict-wait/' + docId);
+        if (data.success) {
+            result.innerHTML = `<div class="alert alert-info">AI prediction: estimated <strong>${data.data} minutes</strong> wait for Doctor #${docId}</div>`;
+        }
+    } catch {
+        result.innerHTML = '<div class="alert alert-error">Could not retrieve prediction.</div>';
+    }
+}
+
+loadWaitingQueue();
+updateNav();
+</script>
+</body>
+</html>
