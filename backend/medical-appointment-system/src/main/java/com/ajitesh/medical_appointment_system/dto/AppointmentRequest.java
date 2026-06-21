@@ -7,6 +7,7 @@ public class AppointmentRequest {
     private Integer doctorId;
     private LocalDate appointmentDate;
     private String reason;
+    private Integer availabilityId;
 
     // Getters and Setters
     public Integer getPatientId() { return patientId; }
@@ -20,4 +21,7 @@ public class AppointmentRequest {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public Integer getAvailabilityId() { return availabilityId; }
+    public void setAvailabilityId(Integer availabilityId) { this.availabilityId = availabilityId; }
 }

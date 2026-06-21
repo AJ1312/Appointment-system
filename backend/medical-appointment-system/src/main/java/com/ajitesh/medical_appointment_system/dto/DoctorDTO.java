@@ -10,6 +10,23 @@ public class DoctorDTO {
     private Integer consultationDuration;
     private String specializationName;
     private Integer specializationId;
+    private java.util.List<AvailabilitySlot> availableSlots;
+    private String earliestSlot;
+
+    public static class AvailabilitySlot {
+        private Integer availabilityId;
+        private String date;
+        private String time;
+
+        public Integer getAvailabilityId() { return availabilityId; }
+        public void setAvailabilityId(Integer availabilityId) { this.availabilityId = availabilityId; }
+
+        public String getDate() { return date; }
+        public void setDate(String date) { this.date = date; }
+
+        public String getTime() { return time; }
+        public void setTime(String time) { this.time = time; }
+    }
 
     // Getters and Setters
     public Integer getDoctorId() { return doctorId; }
@@ -38,4 +55,10 @@ public class DoctorDTO {
 
     public Integer getSpecializationId() { return specializationId; }
     public void setSpecializationId(Integer specializationId) { this.specializationId = specializationId; }
+
+    public java.util.List<AvailabilitySlot> getAvailableSlots() { return availableSlots; }
+    public void setAvailableSlots(java.util.List<AvailabilitySlot> availableSlots) { this.availableSlots = availableSlots; }
+
+    public String getEarliestSlot() { return earliestSlot; }
+    public void setEarliestSlot(String earliestSlot) { this.earliestSlot = earliestSlot; }
 }

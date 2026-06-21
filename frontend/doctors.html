@@ -22,7 +22,7 @@
     </ul>
     <div class="nav-actions">
         <a href="login.html" class="btn btn-ghost" id="loginBtn">Sign In</a>
-        <a href="dashboard.html" class="btn btn-primary">Dashboard</a>
+        <a href="dashboard.html" class="btn btn-primary" id="dashLink" style="display:none">Dashboard</a>
     </div>
 </nav>
 
@@ -39,7 +39,7 @@
     </div>
 
     <div id="doctorsGrid" class="doctors-grid">
-        <div style="text-align:center;padding:3rem;color:var(--text-muted);grid-column:1/-1">Loading doctors...</div>
+        <div style="text-align:center;padding:3rem;color:var(--text-secondary);grid-column:1/-1">Loading doctors...</div>
     </div>
 </div>
 
@@ -53,6 +53,10 @@
 let allDoctors = [];
 
 async function init() {
+    const user = Session.getUser();
+    if (user) {
+        document.getElementById('dashLink').style.display = 'inline-flex';
+    }
     await loadSpecsFilter();
     await loadAllDoctors();
 }
@@ -91,11 +95,25 @@ function filterDoctors() {
 function renderDoctors(doctors) {
     const grid = document.getElementById('doctorsGrid');
     if (!doctors.length) {
-        grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted);grid-column:1/-1">No doctors found matching your search.</div>';
+        grid.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-secondary);grid-column:1/-1">No doctors found matching your search.</div>';
         return;
     }
     grid.innerHTML = doctors.map(d => {
         const ini = d.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+        
+        const slotHtml = d.availableSlots && d.availableSlots.length > 0
+            ? `<div style="margin-top:0.75rem">
+                <span class="label">Earliest slots:</span>
+                <div class="slots-container">
+                    ${d.availableSlots.slice(0,3).map(slot => `
+                        <div class="slot-badge" style="font-size:0.72rem;padding:0.25rem 0.5rem" onclick="bookSlot(${d.doctorId}, '${slot.date}')">
+                            ${slot.date.slice(5)}: ${slot.time.split(' ')[0]}
+                        </div>
+                    `).join('')}
+                </div>
+               </div>`
+            : `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.5rem">No custom slots scheduled.</div>`;
+            
         return `
         <div class="card doctor-card fade-in">
             <div class="doctor-avatar"><span class="doctor-initials">${ini}</span></div>
@@ -103,10 +121,24 @@ function renderDoctors(doctors) {
             <div class="doctor-spec">${d.specializationName || 'General'}</div>
             <div class="doctor-meta">${d.qualification || 'MBBS'}</div>
             <div class="doctor-meta">${d.experienceYears ?? '—'} yrs experience</div>
-            <div class="doctor-meta">${d.consultationDuration || 15} min per consultation</div>
-            <a href="login.html" class="btn btn-outline btn-sm" style="margin-top:0.75rem">Book Appointment</a>
+            <div class="doctor-meta">${d.consultationDuration || 15} min consults</div>
+            ${slotHtml}
+            <button class="btn btn-outline btn-sm btn-full" style="margin-top:0.75rem" onclick="bookSlot(${d.doctorId})">Book Consultation</button>
         </div>`;
     }).join('');
+}
+
+function bookSlot(doctorId, date = null) {
+    const user = Session.getUser();
+    if (!user) {
+        showToast('Please sign in to book an appointment', 'info');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+        return;
+    }
+    
+    // Redirect to patient dashboard booking section
+    Session.set('booking_doctor_redirect', { doctorId, date });
+    window.location.href = 'dashboard.html';
 }
 
 init();

@@ -10,6 +10,11 @@ public class AppointmentResponse {
     private LocalDate appointmentDate;
     private String status;
     private String reason;
+    private String diagnostics;
+    private String triagePriority;
+    private String triageSpecialization;
+    private String triageAction;
+    private String appointmentTime;
     private Integer tokenNumber;
     private Integer queuePosition;
     private Integer estimatedWaitMinutes;
@@ -35,6 +40,21 @@ public class AppointmentResponse {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public String getDiagnostics() { return diagnostics; }
+    public void setDiagnostics(String diagnostics) { this.diagnostics = diagnostics; }
+
+    public String getTriagePriority() { return triagePriority; }
+    public void setTriagePriority(String triagePriority) { this.triagePriority = triagePriority; }
+
+    public String getTriageSpecialization() { return triageSpecialization; }
+    public void setTriageSpecialization(String triageSpecialization) { this.triageSpecialization = triageSpecialization; }
+
+    public String getTriageAction() { return triageAction; }
+    public void setTriageAction(String triageAction) { this.triageAction = triageAction; }
+
+    public String getAppointmentTime() { return appointmentTime; }
+    public void setAppointmentTime(String appointmentTime) { this.appointmentTime = appointmentTime; }
 
     public Integer getTokenNumber() { return tokenNumber; }
     public void setTokenNumber(Integer tokenNumber) { this.tokenNumber = tokenNumber; }

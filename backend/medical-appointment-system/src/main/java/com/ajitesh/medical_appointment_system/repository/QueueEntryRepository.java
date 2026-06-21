@@ -19,4 +19,5 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Integer>
     long countWaitingByDoctorId(Integer doctorId);
 
     List<QueueEntry> findByQueueStatusOrderByQueuePosition(String status);
+    List<QueueEntry> findByAppointment_Doctor_DoctorIdAndQueueStatusOrderByQueuePosition(Integer doctorId, String status);
 }

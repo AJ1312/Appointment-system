@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
+@org.springframework.web.bind.annotation.CrossOrigin(origins = "*")
 public class SpecializationController {
 
     private final SpecializationService specializationService;
@@ -18,7 +19,7 @@ public class SpecializationController {
         this.specializationService = specializationService;
     }
 
-    @GetMapping("/specializations")
+    @GetMapping("/api/specializations")
     public List<Specialization> getAllSpecializations() {
 
         return specializationService.getAllSpecializations();

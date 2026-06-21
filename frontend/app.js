@@ -97,7 +97,13 @@ function updateNav() {
     if (!loginBtn) return;
     if (user) {
         loginBtn.textContent = user.name.split(' ')[0];
-        loginBtn.href        = user.role === 'ADMIN' ? 'admin.html' : 'dashboard.html';
+        if (user.role === 'ADMIN') {
+            loginBtn.href = 'admin.html';
+        } else if (user.role === 'DOCTOR') {
+            loginBtn.href = 'doctor.html';
+        } else {
+            loginBtn.href = 'dashboard.html';
+        }
     }
 }
 

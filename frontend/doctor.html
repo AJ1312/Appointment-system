@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Portal – MediCare</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .triage-highlight {
+            border-left: 4px solid var(--danger) !important;
+            background: #fff5f5;
+        }
+    </style>
+</head>
+<body>
+<div class="dash-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-mark"></div>
+            <span class="sidebar-brand-name">Doctor Portal</span>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="sidebar-section-label">Manage</span>
+            <button class="sidebar-btn active" id="nav-appointments" onclick="showSection('appointments')">My Appointments</button>
+            <button class="sidebar-btn" id="nav-schedule" onclick="showSection('schedule')">Manage Schedule</button>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="sidebar-user" id="doctorUser">Loading...</div>
+            <button class="sidebar-btn" onclick="logout()" style="color:var(--danger)">Sign Out</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+
+        <!-- APPOINTMENTS -->
+        <div id="section-appointments" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Assigned Appointments</h1>
+                <p class="dash-subtitle">Review patient bookings, symptoms, and record diagnostic notes.</p>
+            </div>
+            
+            <div id="highPriorityAlertContainer" style="display:none; margin-bottom: 1.5rem;"></div>
+            
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Patient</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Triage Flag</th>
+                            <th>Reason</th>
+                            <th>Diagnostics</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointmentsTable">
+                        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MANAGE SCHEDULE -->
+        <div id="section-schedule" style="display:none" class="fade-in">
+            <div class="dash-header">
+                <h1 class="dash-title">Schedule Availability</h1>
+                <p class="dash-subtitle">Define when you are active to let patients request appointments.</p>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; align-items: start;">
+                <!-- Add Slot Form -->
+                <div class="card" style="padding:2rem;">
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;color:var(--text-primary)">Add Time Slot</h3>
+                    <div id="scheduleAlert" style="display:none"></div>
+                    <form onsubmit="addAvailability(event)">
+                        <div class="field">
+                            <label class="field-label">Date</label>
+                            <input type="date" id="slotDate" class="field-input" required>
+                        </div>
+                        <div class="field-row">
+                            <div class="field">
+                                <label class="field-label">Start Time</label>
+                                <input type="time" id="slotStart" class="field-input" required>
+                            </div>
+                            <div class="field">
+                                <label class="field-label">End Time</label>
+                                <input type="time" id="slotEnd" class="field-input" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full" id="addSlotBtn">Create Slot</button>
+                    </form>
+                </div>
+                
+                <!-- Availability List -->
+                <div class="card" style="padding:2rem;">
+                    <h3 style="font-size:1.1rem;font-weight:600;margin-bottom:1rem;color:var(--text-primary)">Created Slots (Today / Upcoming)</h3>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time Range</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="slotsTable">
+                                <tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--text-secondary)">No active slots.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- Diagnostics Modal -->
+<div id="diagModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.4); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1.5rem;">
+    <div class="card" style="width:100%; max-width:500px; padding:2rem; background:#fff; position:relative;">
+        <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin-bottom:0.5rem;">Enter Diagnostics</h3>
+        <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:1.5rem;">Add diagnostic results, prescription or notes for <strong id="diagPatientName"></strong></p>
+        
+        <input type="hidden" id="diagApptId">
+        <div class="field">
+            <label class="field-label">Diagnostic Notes / Prescription</label>
+            <textarea id="diagNotes" class="field-textarea" style="height:150px" placeholder="Enter findings, diagnostic tests recommended, and medication instructions..."></textarea>
+        </div>
+        
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+            <button class="btn btn-outline" onclick="closeDiagModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitDiagnostics()" id="submitDiagBtn">Save Notes</button>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+const user = Session.getUser();
+if (!user || user.role !== 'DOCTOR') window.location.href = 'login.html';
+
+document.getElementById('doctorUser').textContent = user.name;
+
+// Limit schedule form date inputs to today/tomorrow
+const todayStr = new Date().toISOString().split('T')[0];
+document.getElementById('slotDate').value = todayStr;
+document.getElementById('slotDate').min = todayStr;
+
+function showSection(sec) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('section-' + sec).style.display = 'block';
+    document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('nav-' + sec).classList.add('active');
+    
+    if (sec === 'appointments') loadAppointments();
+    if (sec === 'schedule') loadScheduleSlots();
+}
+
+async function loadAppointments() {
+    try {
+        const d = await Api.get('/appointments/doctor/' + user.userId);
+        const appts = d.data || [];
+        
+        renderHighPriorityAlerts(appts);
+        
+        const rows = appts.map(a => {
+            const isHighPriority = a.triagePriority === 'High';
+            const highlightClass = isHighPriority ? 'class="triage-highlight"' : '';
+            const triageBadge = isHighPriority 
+                ? '<span class="badge badge-priority-high">⚠️ HIGH PRIORITY</span>'
+                : `<span class="badge badge-priority-low">${a.triagePriority || 'Low'}</span>`;
+            
+            return `
+                <tr ${highlightClass}>
+                    <td>#${a.appointmentId}</td>
+                    <td style="font-weight:600; color:var(--text-primary)">${a.patientName}</td>
+                    <td>
+                        <div>${formatDate(a.appointmentDate)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary)">
+                            ${a.appointmentTime || 'Standard walk-in'}
+                            ${a.status === 'BOOKED' && a.queuePosition ? `· Position #${a.queuePosition}` : ''}
+                        </div>
+                    </td>
+                    <td>${statusBadge(a.status)}</td>
+                    <td>${triageBadge}</td>
+                    <td style="font-size:0.8rem; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${a.reason || ''}">${a.reason || '—'}</td>
+                    <td style="font-size:0.8rem; max-width:200px; color:var(--accent); font-style:italic" title="${a.diagnostics || ''}">${a.diagnostics || '—'}</td>
+                    <td>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap">
+                            <button class="btn btn-outline btn-sm" onclick="openDiagModal(${a.appointmentId}, '${a.patientName}', \`${a.diagnostics || ''}\`)">Diagnostics</button>
+                            ${a.status === 'BOOKED' ? `
+                                <button class="btn btn-success btn-sm" onclick="changeApptStatus(${a.appointmentId}, 'COMPLETED')">Complete</button>
+                                <button class="btn btn-danger btn-sm" onclick="changeApptStatus(${a.appointmentId}, 'CANCELLED')">Cancel</button>
+                                ${a.queuePosition > 1 ? `
+                                    <button class="btn btn-primary btn-sm" onclick="prioritizePatient(${a.appointmentId})">Bump to Front</button>
+                                ` : ''}
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        document.getElementById('appointmentsTable').innerHTML = rows ||
+            '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-secondary)">No appointments assigned.</td></tr>';
+    } catch (err) {
+        document.getElementById('appointmentsTable').innerHTML =
+            '<tr><td colspan="8" style="text-align:center;color:var(--danger)">Backend connection failure.</td></tr>';
+    }
+}
+
+function renderHighPriorityAlerts(appts) {
+    const container = document.getElementById('highPriorityAlertContainer');
+    if (!container) return;
+    
+    // Filter for active high priority appointments with queue position > 1
+    const alerts = appts.filter(a => a.triagePriority === 'High' && a.status === 'BOOKED' && a.queuePosition > 1);
+    
+    if (alerts.length === 0) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    container.innerHTML = alerts.map(a => `
+        <div class="alert alert-error" style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-left: 4px solid var(--danger); padding: 1.2rem; border-radius: 8px; box-shadow: var(--shadow); margin-bottom: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span style="font-size: 1.5rem; line-height: 1;">⚠️</span>
+                <div>
+                    <div style="font-weight: 700; color: #b91c1c; font-size: 0.95rem;">High Priority Triage Alert</div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                        Patient <strong>${a.patientName}</strong> is flagged as High Priority (Symptom: <em>"${a.reason || 'No description provided'}"</em>). Currently at Position #${a.queuePosition}.
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="prioritizePatient(${a.appointmentId})">
+                Schedule at Earliest
+            </button>
+        </div>
+    `).join('');
+}
+
+async function prioritizePatient(id) {
+    try {
+        const res = await Api.put('/queue/prioritize/' + id);
+        if (res.success) {
+            showToast('Patient bumped to front of queue successfully!', 'success');
+            loadAppointments();
+        } else {
+            showToast(res.message || 'Failed to prioritize patient.', 'error');
+        }
+    } catch (err) {
+        showToast('Connection error.', 'error');
+    }
+}
+
+async function changeApptStatus(id, status) {
+    try {
+        await Api.put(`/appointments/${id}/status`, { status });
+        showToast('Appointment status set to ' + status, 'success');
+        loadAppointments();
+    } catch (err) {
+        showToast('Failed to update status', 'error');
+    }
+}
+
+function openDiagModal(id, patientName, existingDiag) {
+    document.getElementById('diagApptId').value = id;
+    document.getElementById('diagPatientName').textContent = patientName;
+    document.getElementById('diagNotes').value = existingDiag === 'null' ? '' : existingDiag;
+    document.getElementById('diagModal').style.display = 'flex';
+}
+
+function closeDiagModal() {
+    document.getElementById('diagModal').style.display = 'none';
+}
+
+async function submitDiagnostics() {
+    const id = document.getElementById('diagApptId').value;
+    const diagText = document.getElementById('diagNotes').value.trim();
+    setLoading('submitDiagBtn', true);
+    try {
+        await fetch(`${API_BASE}/appointments/${id}/diagnostics`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ diagnostics: diagText })
+        });
+        showToast('Diagnostics recorded successfully', 'success');
+        closeDiagModal();
+        loadAppointments();
+    } catch (err) {
+        showToast('Failed to record diagnostics', 'error');
+    }
+    setLoading('submitDiagBtn', false);
+}
+
+async function loadScheduleSlots() {
+    try {
+        const dateStr = document.getElementById('slotDate').value;
+        const d = await Api.get(`/doctors/${user.userId}/availability?date=${dateStr}`);
+        const slots = d.data || [];
+        
+        const rows = slots.map(s => `
+            <tr>
+                <td>${formatDate(s.availableDate)}</td>
+                <td><strong style="color:var(--text-primary)">${s.startTime.slice(0,5)} - ${s.endTime.slice(0,5)}</strong></td>
+                <td>
+                    ${s.isBooked 
+                        ? '<span class="badge badge-cancelled">Booked</span>' 
+                        : '<span class="badge badge-completed">Available</span>'}
+                </td>
+                <td>
+                    <button class="btn btn-danger btn-sm" ${s.isBooked ? 'disabled' : ''} onclick="deleteSlot(${s.availabilityId})">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        document.getElementById('slotsTable').innerHTML = rows ||
+            '<tr><td colspan="4" style="text-align:center;padding:1.5rem;color:var(--text-secondary)">No availability slots configured for this date.</td></tr>';
+    } catch (err) {
+        document.getElementById('slotsTable').innerHTML =
+            '<tr><td colspan="4" style="text-align:center;color:var(--danger)">Failed to query availability slots.</td></tr>';
+    }
+}
+
+// Bind load schedule slots when slotDate input changes
+document.getElementById('slotDate').addEventListener('change', loadScheduleSlots);
+
+async function addAvailability(e) {
+    e.preventDefault();
+    const alertDiv = document.getElementById('scheduleAlert');
+    alertDiv.style.display = 'none';
+    setLoading('addSlotBtn', true);
+    
+    try {
+        const body = {
+            date: document.getElementById('slotDate').value,
+            startTime: document.getElementById('slotStart').value,
+            endTime: document.getElementById('slotEnd').value
+        };
+        
+        const res = await Api.post(`/doctors/${user.userId}/availability`, body);
+        if (res.success) {
+            alertDiv.className = 'alert alert-success';
+            alertDiv.textContent = 'Availability slot registered.';
+            alertDiv.style.display = 'block';
+            showToast('Slot added', 'success');
+            loadScheduleSlots();
+        } else {
+            alertDiv.className = 'alert alert-error';
+            alertDiv.textContent = res.message;
+            alertDiv.style.display = 'block';
+        }
+    } catch (err) {
+        alertDiv.className = 'alert alert-error';
+        alertDiv.textContent = 'Failed to register availability slot.';
+        alertDiv.style.display = 'block';
+    }
+    setLoading('addSlotBtn', false);
+}
+
+async function deleteSlot(id) {
+    if (!confirm('Remove this availability slot?')) return;
+    try {
+        await fetch(`${API_BASE}/doctors/availability/${id}`, { method: 'DELETE' });
+        showToast('Slot removed', 'success');
+        loadScheduleSlots();
+    } catch (err) {
+        showToast('Failed to remove slot', 'error');
+    }
+}
+
+function logout() { Session.clear(); window.location.href = 'index.html'; }
+
+// Init view
+showSection('appointments');
+document.getElementById('diagModal').style.display = 'none'; // Ensure hidden initially
+</script>
+</body>
+</html>

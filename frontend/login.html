@@ -26,12 +26,13 @@
 <div class="page-wrap">
     <div class="card form-box fade-in">
         <h1 class="form-heading">Sign In</h1>
-        <p class="form-subheading">Access your MediCare account</p>
+        <p class="form-subheading">Access your MediCare portal</p>
 
         <div id="loginAlert" style="display:none"></div>
 
         <div class="tabs">
             <button class="tab active" id="tabPatient" onclick="setRole('patient', this)">Patient</button>
+            <button class="tab" id="tabDoctor" onclick="setRole('doctor', this)">Doctor</button>
             <button class="tab" id="tabAdmin" onclick="setRole('admin', this)">Admin</button>
         </div>
 
@@ -44,14 +45,15 @@
                 <label class="field-label" for="password">Password</label>
                 <input type="password" id="password" class="field-input" placeholder="Enter your password" required autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Sign In</button>
+            <button type="submit" class="btn btn-primary btn-full" id="loginSubmitBtn">Sign In</button>
         </form>
 
-        <div class="form-footer">
+        <div class="form-footer" id="signupPrompt">
             No account? <a href="register.html" class="form-link">Create one</a>
         </div>
-        <div class="form-footer" style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-muted)">
-            Demo admin &mdash; admin@medicare.com / admin123
+        <div class="form-footer" style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-secondary)">
+            Demo admin &mdash; admin@medicare.com / admin123 <br>
+            Demo doctor &mdash; rajiv.sharma@medicare.com / doctor123
         </div>
     </div>
 </div>
@@ -64,16 +66,27 @@ function setRole(role, el) {
     currentRole = role;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
+    
+    const signupPrompt = document.getElementById('signupPrompt');
+    if (role === 'patient') {
+        signupPrompt.style.display = 'block';
+    } else {
+        signupPrompt.style.display = 'none';
+    }
 }
 
 async function handleLogin(e) {
     e.preventDefault();
     const alertDiv = document.getElementById('loginAlert');
     alertDiv.style.display = 'none';
-    setLoading('loginBtn', true);
+    setLoading('loginSubmitBtn', true);
 
     try {
-        const endpoint = currentRole === 'admin' ? '/admin/login' : '/patients/login';
+        let endpoint;
+        if (currentRole === 'admin') endpoint = '/admin/login';
+        else if (currentRole === 'doctor') endpoint = '/doctors/login';
+        else endpoint = '/patients/login';
+
         const data = await Api.post(endpoint, {
             email: document.getElementById('email').value,
             password: document.getElementById('password').value
@@ -82,19 +95,21 @@ async function handleLogin(e) {
             Session.setUser(data.data);
             showToast('Welcome back, ' + data.data.name, 'success');
             setTimeout(() => {
-                window.location.href = currentRole === 'admin' ? 'admin.html' : 'dashboard.html';
+                if (currentRole === 'admin') window.location.href = 'admin.html';
+                else if (currentRole === 'doctor') window.location.href = 'doctor.html';
+                else window.location.href = 'dashboard.html';
             }, 700);
         } else {
             alertDiv.className = 'alert alert-error';
             alertDiv.textContent = data.message || 'Invalid credentials.';
             alertDiv.style.display = 'block';
         }
-    } catch {
+    } catch (err) {
         alertDiv.className = 'alert alert-error';
-        alertDiv.textContent = 'Unable to connect. Ensure the backend server is running on port 8080.';
+        alertDiv.textContent = 'Unable to connect to the backend server.';
         alertDiv.style.display = 'block';
     }
-    setLoading('loginBtn', false);
+    setLoading('loginSubmitBtn', false);
 }
 </script>
 </body>

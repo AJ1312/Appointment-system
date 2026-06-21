@@ -37,4 +37,10 @@ public class QueueController {
         int wait = queueService.predictWaitTime(doctorId);
         return ResponseEntity.ok(ApiResponse.success("Predicted wait time in minutes", wait));
     }
+
+    // Prioritize waiting queue entry
+    @PutMapping("/prioritize/{appointmentId}")
+    public ResponseEntity<ApiResponse<QueueStatusResponse>> prioritizeQueue(@PathVariable Integer appointmentId) {
+        return ResponseEntity.ok(ApiResponse.success("Queue prioritized", queueService.prioritizeQueue(appointmentId)));
+    }
 }

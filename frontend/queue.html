@@ -31,10 +31,10 @@
     <div style="margin-bottom:2.5rem">
         <span class="label">Queue Tracking</span>
         <h1 style="font-size:1.8rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:0.4rem">Queue Status</h1>
-        <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.75rem">Check your real-time queue position using your appointment ID.</p>
+        <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.75rem">Check your real-time queue position and AI estimated wait time using your appointment ID.</p>
 
         <div class="card" style="padding:1.75rem;margin-bottom:2rem">
-            <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-muted);margin-bottom:0.75rem">Track Your Appointment</p>
+            <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-secondary);margin-bottom:0.75rem">Track Your Appointment</p>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
                 <input type="number" id="trackId" class="field-input" style="max-width:200px" placeholder="Appointment ID">
                 <button class="btn btn-primary" onclick="trackQueue()">Check Status</button>
@@ -48,26 +48,12 @@
     <div class="table-wrap" style="margin-bottom:2.5rem">
         <table>
             <thead>
-                <tr><th>Token</th><th>Patient</th><th>Doctor</th><th>Position</th><th>Est. Wait</th><th>Status</th></tr>
+                <tr><th>Token</th><th>Patient</th><th>Doctor</th><th>Position</th><th>Live Est. Wait</th><th>Status</th></tr>
             </thead>
             <tbody id="queueBody">
-                <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading queue...</td></tr>
+                <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading queue...</td></tr>
             </tbody>
         </table>
-    </div>
-
-    <!-- AI wait prediction -->
-    <div class="card" style="padding:1.75rem">
-        <span class="label">AI Feature</span>
-        <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.35rem">Wait Time Prediction</h3>
-        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem">
-            Enter a doctor ID to get an AI-predicted wait time based on current queue depth and consultation patterns.
-        </p>
-        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
-            <input type="number" id="predictDocId" class="field-input" style="max-width:180px" placeholder="Doctor ID">
-            <button class="btn btn-primary" onclick="predictWait()">Predict Wait</button>
-        </div>
-        <div id="predictResult" style="margin-top:1rem"></div>
     </div>
 </div>
 
@@ -85,13 +71,13 @@ async function loadWaitingQueue() {
         document.getElementById('queueBody').innerHTML = queue.map(q => `
             <tr>
                 <td><span class="badge badge-token">T-${String(q.tokenNumber).padStart(2,'0')}</span></td>
-                <td style="color:var(--text-primary)">${q.patientName}</td>
+                <td style="color:var(--text-primary);font-weight:600">${q.patientName}</td>
                 <td>${q.doctorName}</td>
                 <td>#${q.queuePosition}</td>
-                <td>${q.estimatedWaitMinutes ?? '—'} min</td>
+                <td><strong style="color:var(--accent)">${q.estimatedWaitMinutes ?? '—'} mins</strong></td>
                 <td>${statusBadge(q.queueStatus)}</td>
             </tr>`).join('') ||
-            '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Queue is empty</td></tr>';
+            '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">Queue is empty</td></tr>';
     } catch {
         document.getElementById('queueBody').innerHTML =
             '<tr><td colspan="6" style="text-align:center;color:var(--danger)">Backend not connected</td></tr>';
@@ -118,10 +104,10 @@ async function trackQueue() {
                         </div>
                         <div>
                             <div class="token-meta-val">${q.estimatedWaitMinutes ?? '—'}</div>
-                            <div class="token-meta-key">Wait (min)</div>
+                            <div class="token-meta-key">Est. Wait (min)</div>
                         </div>
                     </div>
-                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-muted)">
+                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-secondary)">
                         Doctor: ${q.doctorName} &nbsp;&middot;&nbsp; Patient: ${q.patientName}
                     </div>
                 </div>`;
@@ -133,22 +119,27 @@ async function trackQueue() {
     }
 }
 
-async function predictWait() {
-    const docId  = document.getElementById('predictDocId').value;
-    const result = document.getElementById('predictResult');
-    if (!docId) return;
-    try {
-        const data = await Api.get('/queue/predict-wait/' + docId);
-        if (data.success) {
-            result.innerHTML = `<div class="alert alert-info">AI prediction: estimated <strong>${data.data} minutes</strong> wait for Doctor #${docId}</div>`;
-        }
-    } catch {
-        result.innerHTML = '<div class="alert alert-error">Could not retrieve prediction.</div>';
+async function autoLoadPatientQueue() {
+    const user = Session.getUser();
+    if (user && user.role === 'PATIENT') {
+        try {
+            const data = await Api.get('/appointments/patient/' + user.userId);
+            const appts = data.data || [];
+            // Find latest active booked appointment
+            const active = appts.find(a => a.status === 'BOOKED');
+            if (active) {
+                document.getElementById('trackId').value = active.appointmentId;
+                trackQueue();
+                // Auto refresh every 5 seconds
+                setInterval(trackQueue, 5000);
+            }
+        } catch (err) {}
     }
 }
 
 loadWaitingQueue();
 updateNav();
+autoLoadPatientQueue();
 </script>
 </body>
 </html>

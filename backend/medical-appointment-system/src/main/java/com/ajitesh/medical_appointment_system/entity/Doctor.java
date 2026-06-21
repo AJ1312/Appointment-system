@@ -33,6 +33,9 @@ public class Doctor {
     @JoinColumn(name = "specialization_id")
     private Specialization specialization;
 
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash = "f348d5628621f3d8f59c8cabda0f8eb0aa7e0514a90be7571020b1336f26c113"; // default: doctor123
+
     // Getters and Setters
     public Integer getDoctorId() { return doctorId; }
     public void setDoctorId(Integer doctorId) { this.doctorId = doctorId; }
@@ -57,4 +60,7 @@ public class Doctor {
 
     public Specialization getSpecialization() { return specialization; }
     public void setSpecialization(Specialization specialization) { this.specialization = specialization; }
+
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 }

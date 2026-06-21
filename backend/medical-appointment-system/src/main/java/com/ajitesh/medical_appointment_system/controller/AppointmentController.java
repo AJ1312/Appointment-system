@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -48,5 +49,13 @@ public class AppointmentController {
             @PathVariable Integer id,
             @RequestParam String status) {
         return ResponseEntity.ok(ApiResponse.success("Status updated", appointmentService.updateStatus(id, status)));
+    }
+
+    @PutMapping("/{id}/diagnostics")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> updateDiagnostics(
+            @PathVariable Integer id,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success("Diagnostics updated",
+                appointmentService.updateDiagnostics(id, body.get("diagnostics"))));
     }
 }

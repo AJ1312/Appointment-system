@@ -28,7 +28,7 @@
             <button class="sidebar-btn"         id="nav-addDoctor"   onclick="showSection('addDoctor')">Add Doctor</button>
         </nav>
         <div class="sidebar-footer">
-            <div class="sidebar-user" id="adminUser"></div>
+            <div class="sidebar-user" id="adminUser">Loading...</div>
             <button class="sidebar-btn" onclick="logout()" style="color:var(--danger)">Sign Out</button>
         </div>
     </aside>
@@ -74,8 +74,8 @@
             </div>
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
                 <button class="btn btn-primary" onclick="showSection('addDoctor')">Add Doctor</button>
-                <button class="btn btn-ghost" onclick="showSection('appointments')">View Appointments</button>
-                <button class="btn btn-ghost" onclick="showSection('queue')">Live Queue</button>
+                <button class="btn btn-outline" onclick="showSection('appointments')">View Appointments</button>
+                <button class="btn btn-outline" onclick="showSection('queue')">Live Queue</button>
             </div>
         </div>
 
@@ -87,8 +87,8 @@
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Gender</th><th>Registered</th></tr></thead>
-                    <tbody id="patientsTable"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                    <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Gender</th><th>Date of Birth</th></tr></thead>
+                    <tbody id="patientsTable"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -102,7 +102,7 @@
             <div class="table-wrap">
                 <table>
                     <thead><tr><th>ID</th><th>Name</th><th>Specialization</th><th>Email</th><th>Experience</th><th>Consult Time</th><th>Action</th></tr></thead>
-                    <tbody id="doctorsTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                    <tbody id="doctorsTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -115,8 +115,8 @@
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Date</th><th>Status</th><th>Token</th><th>Update Status</th></tr></thead>
-                    <tbody id="allApptsTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                    <thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Date & Time</th><th>Status</th><th>Triage Flag</th><th>Token</th><th>Update Status</th></tr></thead>
+                    <tbody id="allApptsTable"><tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -130,7 +130,7 @@
             <div class="table-wrap">
                 <table>
                     <thead><tr><th>Queue ID</th><th>Token</th><th>Patient</th><th>Doctor</th><th>Position</th><th>Est. Wait</th><th>Status</th></tr></thead>
-                    <tbody id="queueTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody>
+                    <tbody id="queueTable"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -225,14 +225,14 @@ async function loadPatients() {
         const rows = (d.data || []).map(p => `
             <tr>
                 <td>#${p.patientId}</td>
-                <td style="color:var(--text-primary)">${p.name}</td>
+                <td style="color:var(--text-primary);font-weight:600">${p.name}</td>
                 <td>${p.email}</td>
                 <td>${p.phone || '—'}</td>
                 <td>${p.gender || '—'}</td>
                 <td>${formatDate(p.dateOfBirth) || '—'}</td>
             </tr>`).join('');
         document.getElementById('patientsTable').innerHTML = rows ||
-            '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">No patients found</td></tr>';
+            '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">No patients found</td></tr>';
     } catch {}
 }
 
@@ -242,7 +242,7 @@ async function loadDoctors() {
         const rows = (d.data || []).map(doc => `
             <tr>
                 <td>#${doc.doctorId}</td>
-                <td style="color:var(--text-primary)">${doc.name}</td>
+                <td style="color:var(--text-primary);font-weight:600">${doc.name}</td>
                 <td><span class="text-accent">${doc.specializationName || '—'}</span></td>
                 <td>${doc.email}</td>
                 <td>${doc.experienceYears ?? '—'} yrs</td>
@@ -250,25 +250,41 @@ async function loadDoctors() {
                 <td><button class="btn btn-danger btn-sm" onclick="deleteDoctor(${doc.doctorId})">Remove</button></td>
             </tr>`).join('');
         document.getElementById('doctorsTable').innerHTML = rows ||
-            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No doctors found</td></tr>';
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary)">No doctors found</td></tr>';
     } catch {}
 }
 
 async function deleteDoctor(id) {
     if (!confirm('Remove this doctor from the system?')) return;
-    showToast('Feature note: DELETE endpoint needs backend wiring', 'info');
+    try {
+        await fetch(`${API_BASE}/doctors/${id}`, { method: 'DELETE' });
+        showToast('Doctor deleted successfully', 'success');
+        loadDoctors();
+    } catch {
+        showToast('Error deleting doctor', 'error');
+    }
 }
 
 async function loadAppointments() {
     try {
         const d = await Api.get('/appointments');
-        const rows = (d.data || []).map(a => `
+        const rows = (d.data || []).map(a => {
+            const isHighPriority = a.triagePriority === 'High';
+            const triageBadge = isHighPriority 
+                ? '<span class="badge badge-priority-high">⚠️ HIGH PRIORITY</span>'
+                : `<span class="badge badge-priority-low">${a.triagePriority || 'Low'}</span>`;
+                
+            return `
             <tr>
                 <td>#${a.appointmentId}</td>
-                <td style="color:var(--text-primary)">${a.patientName}</td>
+                <td style="color:var(--text-primary);font-weight:600">${a.patientName}</td>
                 <td>${a.doctorName}</td>
-                <td>${formatDate(a.appointmentDate)}</td>
+                <td>
+                    <div>${formatDate(a.appointmentDate)}</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)">${a.appointmentTime || 'Standard walk-in'}</div>
+                </td>
                 <td>${statusBadge(a.status)}</td>
+                <td>${triageBadge}</td>
                 <td><span class="badge badge-token">T-${String(a.tokenNumber || '—').padStart(2,'0')}</span></td>
                 <td>
                     <select class="field-select" style="padding:0.3rem 0.5rem;font-size:0.78rem" onchange="updateStatus(${a.appointmentId}, this.value)">
@@ -278,9 +294,10 @@ async function loadAppointments() {
                         <option value="CANCELLED">Cancelled</option>
                     </select>
                 </td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
         document.getElementById('allApptsTable').innerHTML = rows ||
-            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No appointments</td></tr>';
+            '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">No appointments</td></tr>';
     } catch {}
 }
 
@@ -300,14 +317,14 @@ async function loadQueue() {
             <tr>
                 <td>#${q.queueId}</td>
                 <td><span class="badge badge-token">T-${String(q.tokenNumber).padStart(2,'0')}</span></td>
-                <td style="color:var(--text-primary)">${q.patientName}</td>
+                <td style="color:var(--text-primary);font-weight:600">${q.patientName}</td>
                 <td>${q.doctorName}</td>
-                <td>${q.queuePosition}</td>
+                <td>#${q.queuePosition}</td>
                 <td>${q.estimatedWaitMinutes ?? '—'} min</td>
                 <td>${statusBadge(q.queueStatus)}</td>
             </tr>`).join('');
         document.getElementById('queueTable').innerHTML = rows ||
-            '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">Queue is empty</td></tr>';
+            '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary)">Queue is empty</td></tr>';
     } catch {}
 }
 

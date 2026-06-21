@@ -4,15 +4,18 @@ import com.ajitesh.medical_appointment_system.dto.AppointmentRequest;
 import com.ajitesh.medical_appointment_system.dto.AppointmentResponse;
 import com.ajitesh.medical_appointment_system.entity.Appointment;
 import com.ajitesh.medical_appointment_system.entity.Doctor;
+import com.ajitesh.medical_appointment_system.entity.DoctorAvailability;
 import com.ajitesh.medical_appointment_system.entity.Patient;
 import com.ajitesh.medical_appointment_system.entity.QueueEntry;
 import com.ajitesh.medical_appointment_system.repository.AppointmentRepository;
+import com.ajitesh.medical_appointment_system.repository.DoctorAvailabilityRepository;
 import com.ajitesh.medical_appointment_system.repository.DoctorRepository;
 import com.ajitesh.medical_appointment_system.repository.PatientRepository;
 import com.ajitesh.medical_appointment_system.repository.QueueEntryRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -23,15 +26,21 @@ public class AppointmentService {
     private final PatientRepository patientRepository;
     private final DoctorRepository doctorRepository;
     private final QueueEntryRepository queueEntryRepository;
+    private final DoctorAvailabilityRepository doctorAvailabilityRepository;
+    private final DoctorService doctorService;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                                PatientRepository patientRepository,
                                DoctorRepository doctorRepository,
-                               QueueEntryRepository queueEntryRepository) {
+                               QueueEntryRepository queueEntryRepository,
+                               DoctorAvailabilityRepository doctorAvailabilityRepository,
+                               DoctorService doctorService) {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
         this.queueEntryRepository = queueEntryRepository;
+        this.doctorAvailabilityRepository = doctorAvailabilityRepository;
+        this.doctorService = doctorService;
     }
 
     public AppointmentResponse bookAppointment(AppointmentRequest request) {
@@ -46,6 +55,33 @@ public class AppointmentService {
         appointment.setAppointmentDate(request.getAppointmentDate());
         appointment.setReason(request.getReason());
         appointment.setStatus("BOOKED");
+
+        // Process availability slot if selected
+        if (request.getAvailabilityId() != null) {
+            DoctorAvailability slot = doctorAvailabilityRepository.findById(request.getAvailabilityId())
+                    .orElseThrow(() -> new RuntimeException("Availability slot not found: " + request.getAvailabilityId()));
+            if (slot.getIsBooked()) {
+                throw new RuntimeException("This slot is already booked.");
+            }
+            slot.setIsBooked(true);
+            doctorAvailabilityRepository.save(slot);
+            appointment.setAppointmentTime(slot.getStartTime().toString() + " - " + slot.getEndTime().toString());
+        } else {
+            appointment.setAppointmentTime("Standard walk-in");
+        }
+
+        // Run AI Symptom Triage Analysis
+        if (request.getReason() != null) {
+            Map<String, String> triage = doctorService.runTriageAnalysis(request.getReason());
+            appointment.setTriagePriority(triage.get("priority"));
+            appointment.setTriageSpecialization(triage.get("specialization"));
+            appointment.setTriageAction(triage.get("action"));
+        } else {
+            appointment.setTriagePriority("Low");
+            appointment.setTriageSpecialization("General Medicine");
+            appointment.setTriageAction("Standard booking");
+        }
+
         Appointment saved = appointmentRepository.save(appointment);
 
         // Auto-generate queue token
@@ -104,7 +140,37 @@ public class AppointmentService {
             if ("COMPLETED".equals(status)) q.setQueueStatus("COMPLETED");
             if ("CANCELLED".equals(status)) q.setQueueStatus("CANCELLED");
             queueEntryRepository.save(q);
+
+            // Realign remaining waiting queue entries for this doctor
+            if ("COMPLETED".equals(status) || "CANCELLED".equals(status)) {
+                realignQueueForDoctor(appointment.getDoctor().getDoctorId());
+            }
         });
+
+        QueueEntry q = queueEntryRepository.findByAppointment_AppointmentId(appointmentId).orElse(null);
+        return buildResponse(appointment, q);
+    }
+
+    private void realignQueueForDoctor(Integer doctorId) {
+        List<QueueEntry> waitingQueue = queueEntryRepository
+                .findByAppointment_Doctor_DoctorIdAndQueueStatusOrderByQueuePosition(doctorId, "WAITING");
+        int pos = 1;
+        for (QueueEntry entry : waitingQueue) {
+            entry.setQueuePosition(pos);
+            int consultDuration = entry.getAppointment().getDoctor().getConsultationDuration() != null 
+                    ? entry.getAppointment().getDoctor().getConsultationDuration() : 15;
+            entry.setEstimatedWaitMinutes(pos * consultDuration);
+            queueEntryRepository.save(entry);
+            pos++;
+        }
+    }
+
+
+    public AppointmentResponse updateDiagnostics(Integer appointmentId, String diagnostics) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Appointment not found: " + appointmentId));
+        appointment.setDiagnostics(diagnostics);
+        appointmentRepository.save(appointment);
 
         QueueEntry q = queueEntryRepository.findByAppointment_AppointmentId(appointmentId).orElse(null);
         return buildResponse(appointment, q);
@@ -125,6 +191,11 @@ public class AppointmentService {
         resp.setAppointmentDate(a.getAppointmentDate());
         resp.setStatus(a.getStatus());
         resp.setReason(a.getReason());
+        resp.setDiagnostics(a.getDiagnostics());
+        resp.setTriagePriority(a.getTriagePriority());
+        resp.setTriageSpecialization(a.getTriageSpecialization());
+        resp.setTriageAction(a.getTriageAction());
+        resp.setAppointmentTime(a.getAppointmentTime());
         if (q != null) {
             resp.setTokenNumber(q.getTokenNumber());
             resp.setQueuePosition(q.getQueuePosition());

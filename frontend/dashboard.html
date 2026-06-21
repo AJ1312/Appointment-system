@@ -23,10 +23,10 @@
             <button class="sidebar-btn" id="nav-book" onclick="showSection('book')">Book Appointment</button>
             <button class="sidebar-btn" id="nav-appointments" onclick="showSection('appointments')">My Appointments</button>
             <button class="sidebar-btn" id="nav-queue" onclick="showSection('queue')">Queue Status</button>
-            <button class="sidebar-btn" id="nav-recommend" onclick="showSection('recommend')">AI Doctor Finder</button>
+            <button class="sidebar-btn" id="nav-recommend" onclick="showSection('recommend')">AI Symptom Assistant</button>
         </nav>
         <div class="sidebar-footer">
-            <div class="sidebar-user" id="sidebarUser"></div>
+            <div class="sidebar-user" id="sidebarUser">Loading...</div>
             <button class="sidebar-btn" onclick="logout()" style="color:var(--danger)">Sign Out</button>
         </div>
     </aside>
@@ -71,13 +71,14 @@
                         <tr>
                             <th>Doctor</th>
                             <th>Specialization</th>
-                            <th>Date</th>
+                            <th>Date & Time</th>
                             <th>Status</th>
+                            <th>Diagnostics / prescription</th>
                             <th>Token</th>
                         </tr>
                     </thead>
                     <tbody id="recentTable">
-                        <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -87,7 +88,7 @@
         <div id="section-book" style="display:none" class="fade-in">
             <div class="dash-header">
                 <h1 class="dash-title">Book Appointment</h1>
-                <p class="dash-subtitle">Select a doctor and your preferred date</p>
+                <p class="dash-subtitle">Select a doctor, preferred date and choose an available time slot.</p>
             </div>
             <div class="card" style="padding:2rem;max-width:560px">
                 <div id="bookAlert" style="display:none"></div>
@@ -100,14 +101,22 @@
                     </div>
                     <div class="field">
                         <label class="field-label">Doctor <span style="color:var(--danger)">*</span></label>
-                        <select id="doctorSelect" class="field-select" required>
+                        <select id="doctorSelect" class="field-select" onchange="onDoctorOrDateChange()" required>
                             <option value="">Select a doctor</option>
                         </select>
                     </div>
                     <div class="field">
                         <label class="field-label">Appointment Date <span style="color:var(--danger)">*</span></label>
-                        <input type="date" id="apptDate" class="field-input" required>
+                        <input type="date" id="apptDate" class="field-input" onchange="onDoctorOrDateChange()" required>
                     </div>
+                    
+                    <!-- Availability Slots Badge Selector -->
+                    <div class="field" id="slotsField" style="display:none">
+                        <label class="field-label">Select Available Time Slot <span style="color:var(--text-muted)">(Optional)</span></label>
+                        <div class="slots-container" id="slotsContainer"></div>
+                        <input type="hidden" id="selectedAvailabilityId">
+                    </div>
+
                     <div class="field">
                         <label class="field-label">Reason / Symptoms</label>
                         <textarea id="apptReason" class="field-textarea" placeholder="Briefly describe your symptoms or reason for this visit..."></textarea>
@@ -131,6 +140,7 @@
                             <div class="token-meta-key">Est. Wait (min)</div>
                         </div>
                     </div>
+                    <div style="margin-top:1rem;font-size:0.75rem;color:var(--text-secondary)" id="resApptId"></div>
                 </div>
             </div>
         </div>
@@ -146,11 +156,11 @@
                     <thead>
                         <tr>
                             <th>ID</th><th>Doctor</th><th>Specialization</th>
-                            <th>Date</th><th>Status</th><th>Token</th><th>Est. Wait</th>
+                            <th>Date & Time</th><th>Status</th><th>Diagnostics</th><th>Token</th><th>Est. Wait</th>
                         </tr>
                     </thead>
                     <tbody id="allApptTable">
-                        <tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr>
+                        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-secondary)">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -169,22 +179,41 @@
             <div id="queueStatusResult"></div>
         </div>
 
-        <!-- AI DOCTOR FINDER -->
+        <!-- AI Symptom Assistant -->
         <div id="section-recommend" style="display:none" class="fade-in">
             <div class="dash-header">
-                <h1 class="dash-title">AI Doctor Finder</h1>
-                <p class="dash-subtitle">Describe your symptoms and get a specialist recommendation</p>
+                <h1 class="dash-title">AI Symptom Triage Assistant</h1>
+                <p class="dash-subtitle">Describe your symptoms to receive instant triage recommendations, priority level, and slots booking.</p>
             </div>
             <div class="card" style="padding:1.75rem;max-width:580px;margin-bottom:2rem">
                 <div class="field" style="margin-bottom:0">
-                    <label class="field-label">Symptoms</label>
+                    <label class="field-label">What symptoms are you experiencing?</label>
                     <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.4rem">
-                        <input type="text" id="symptomText" class="field-input" placeholder="e.g. chest pain, shortness of breath..." style="flex:1;min-width:200px">
-                        <button class="btn btn-primary" onclick="getRecommendations()" id="recBtn">Analyse</button>
+                        <input type="text" id="symptomText" class="field-input" placeholder="e.g. I have chest pain and shortness of breath" style="flex:1;min-width:200px">
+                        <button class="btn btn-primary" onclick="analyzeSymptoms()" id="recBtn">Analyze</button>
                     </div>
                 </div>
-                <div id="aiSpecResult" style="display:none;margin-top:1rem" class="alert alert-info"></div>
             </div>
+            
+            <!-- Triage Results Output -->
+            <div id="aiTriageOutputCard" class="card" style="padding:1.5rem;max-width:580px;margin-bottom:2rem;display:none;">
+                <h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem;color:var(--text-primary);">AI Triage Assessment</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+                    <div>
+                        <div class="field-label">Recommended Specialty</div>
+                        <strong style="color:var(--accent);" id="triageSpecText">—</strong>
+                    </div>
+                    <div>
+                        <div class="field-label">Priority Level</div>
+                        <span class="badge" id="triagePriorityBadge">—</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="field-label">Suggested Action</div>
+                    <strong style="color:var(--text-primary);" id="triageActionText">—</strong>
+                </div>
+            </div>
+
             <div id="recDoctorsGrid" class="doctors-grid"></div>
         </div>
 
@@ -202,15 +231,47 @@ document.getElementById('sidebarUser').textContent = user.name;
 // Set min date
 const today = new Date().toISOString().split('T')[0];
 document.getElementById('apptDate').min = today;
+document.getElementById('apptDate').value = today;
+
+let queueInterval = null;
 
 function showSection(sec) {
+    if (queueInterval) {
+        clearInterval(queueInterval);
+        queueInterval = null;
+    }
     document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
     document.getElementById('section-' + sec).style.display = 'block';
     document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
     document.getElementById('nav-' + sec).classList.add('active');
+    
     if (sec === 'overview') loadMyAppointments('overview');
     if (sec === 'appointments') loadMyAppointments('all');
     if (sec === 'book') loadSpecializations();
+    if (sec === 'queue') autoLoadQueueStatus();
+}
+
+async function autoLoadQueueStatus() {
+    const input = document.getElementById('apptIdInput');
+    const result = document.getElementById('queueStatusResult');
+    result.innerHTML = '<div style="color:var(--text-secondary);font-size:0.9rem">Checking for active appointments...</div>';
+    
+    try {
+        const data = await Api.get('/appointments/patient/' + user.userId);
+        const appts = data.data || [];
+        // Find latest booked/waiting appointment
+        const active = appts.find(a => a.status === 'BOOKED');
+        if (active) {
+            input.value = active.appointmentId;
+            checkQueue();
+            // Start auto refresh every 5 seconds
+            queueInterval = setInterval(checkQueue, 5000);
+        } else {
+            result.innerHTML = '<div class="alert alert-info">You have no active booked appointments. You can check any queue by entering an Appointment ID manually above.</div>';
+        }
+    } catch (err) {
+        result.innerHTML = '<div class="alert alert-error">Failed to check active appointments.</div>';
+    }
 }
 
 async function loadMyAppointments(mode) {
@@ -225,35 +286,43 @@ async function loadMyAppointments(mode) {
 
         const makeRow = a => `
             <tr>
-                <td style="color:var(--text-primary)">${a.doctorName}</td>
+                <td style="color:var(--text-primary);font-weight:600">${a.doctorName}</td>
                 <td><span class="text-accent">${a.specialization || '—'}</span></td>
-                <td>${formatDate(a.appointmentDate)}</td>
+                <td>
+                    <div>${formatDate(a.appointmentDate)}</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)">${a.appointmentTime || 'Standard walk-in'}</div>
+                </td>
                 <td>${statusBadge(a.status)}</td>
+                <td style="font-size:0.8rem;max-width:200px;color:var(--text-secondary);font-style:italic" title="${a.diagnostics || ''}">${a.diagnostics || '—'}</td>
                 <td><span class="badge badge-token">T-${pad(a.tokenNumber)}</span></td>
             </tr>`;
 
         if (mode === 'overview') {
             document.getElementById('recentTable').innerHTML =
                 appts.slice(0,5).map(makeRow).join('') ||
-                '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No appointments yet</td></tr>';
+                '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary)">No appointments booked yet</td></tr>';
         }
         if (mode === 'all') {
             document.getElementById('allApptTable').innerHTML =
                 appts.map(a => `
                     <tr>
                         <td>#${a.appointmentId}</td>
-                        <td style="color:var(--text-primary)">${a.doctorName}</td>
+                        <td style="color:var(--text-primary);font-weight:600">${a.doctorName}</td>
                         <td>${a.specialization || '—'}</td>
-                        <td>${formatDate(a.appointmentDate)}</td>
+                        <td>
+                            <div>${formatDate(a.appointmentDate)}</div>
+                            <div style="font-size:0.75rem;color:var(--text-secondary)">${a.appointmentTime || 'Standard walk-in'}</div>
+                        </td>
                         <td>${statusBadge(a.status)}</td>
+                        <td style="font-size:0.8rem;max-width:200px;color:var(--text-secondary);font-style:italic" title="${a.diagnostics || ''}">${a.diagnostics || '—'}</td>
                         <td><span class="badge badge-token">T-${pad(a.tokenNumber)}</span></td>
                         <td>${a.estimatedWaitMinutes != null ? a.estimatedWaitMinutes + ' min' : '—'}</td>
                     </tr>`).join('') ||
-                '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">No appointments</td></tr>';
+                '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">No appointments</td></tr>';
         }
     } catch {
         const el = document.getElementById(mode === 'all' ? 'allApptTable' : 'recentTable');
-        if (el) el.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger)">Backend not connected</td></tr>';
+        if (el) el.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger)">Backend connection failure</td></tr>';
     }
 }
 
@@ -276,7 +345,51 @@ async function loadDoctorsBySpec() {
         const sel     = document.getElementById('doctorSelect');
         sel.innerHTML = '<option value="">Select a doctor</option>';
         doctors.forEach(d => sel.innerHTML += `<option value="${d.doctorId}">${d.name} — ${d.specializationName || ''}</option>`);
+        onDoctorOrDateChange();
     } catch {}
+}
+
+async function onDoctorOrDateChange() {
+    const docId = document.getElementById('doctorSelect').value;
+    const date = document.getElementById('apptDate').value;
+    const slotsField = document.getElementById('slotsField');
+    const container = document.getElementById('slotsContainer');
+    
+    // Reset selected availability
+    document.getElementById('selectedAvailabilityId').value = '';
+    
+    if (!docId || !date) {
+        slotsField.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const d = await Api.get(`/doctors/${docId}/availability?date=${date}`);
+        const slots = d.data || [];
+        
+        // Filter out booked slots
+        const unbooked = slots.filter(s => !s.isBooked);
+        
+        if (unbooked.length > 0) {
+            slotsField.style.display = 'block';
+            container.innerHTML = unbooked.map(s => `
+                <div class="slot-badge" onclick="selectSlot(this, ${s.availabilityId})">
+                    ${s.startTime.slice(0,5)} - ${s.endTime.slice(0,5)}
+                </div>
+            `).join('');
+        } else {
+            slotsField.style.display = 'block';
+            container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem">No custom availability slots. Standard booking will be assigned.</div>';
+        }
+    } catch (err) {
+        slotsField.style.display = 'none';
+    }
+}
+
+function selectSlot(el, id) {
+    document.querySelectorAll('.slot-badge').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('selectedAvailabilityId').value = id;
 }
 
 async function bookAppointment(e) {
@@ -284,20 +397,29 @@ async function bookAppointment(e) {
     const alertDiv = document.getElementById('bookAlert');
     alertDiv.style.display = 'none';
     setLoading('bookBtn', true);
+    
+    const slotIdVal = document.getElementById('selectedAvailabilityId').value;
+    const availabilityId = slotIdVal ? parseInt(slotIdVal) : null;
+    
     try {
         const data = await Api.post('/appointments', {
             patientId:       user.userId,
             doctorId:        parseInt(document.getElementById('doctorSelect').value),
             appointmentDate: document.getElementById('apptDate').value,
-            reason:          document.getElementById('apptReason').value
+            reason:          document.getElementById('apptReason').value,
+            availabilityId:  availabilityId
         });
         if (data.success) {
             const a = data.data;
             document.getElementById('resToken').textContent = 'T-' + pad(a.tokenNumber);
             document.getElementById('resPos').textContent   = a.queuePosition;
             document.getElementById('resWait').textContent  = a.estimatedWaitMinutes;
+            document.getElementById('resApptId').textContent = 'Appointment ID: #' + a.appointmentId;
             document.getElementById('tokenResult').style.display = 'block';
-            showToast('Appointment confirmed. Token: T-' + pad(a.tokenNumber), 'success');
+            showToast('Appointment booked successfully!', 'success');
+            e.target.reset();
+            document.getElementById('selectedAvailabilityId').value = '';
+            document.getElementById('slotsField').style.display = 'none';
         } else {
             alertDiv.className = 'alert alert-error';
             alertDiv.textContent = data.message;
@@ -334,7 +456,7 @@ async function checkQueue() {
                             <div class="token-meta-key">Wait (min)</div>
                         </div>
                     </div>
-                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-muted)">Doctor: ${q.doctorName}</div>
+                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-secondary)">Doctor: ${q.doctorName}</div>
                 </div>`;
         } else {
             result.innerHTML = '<div class="alert alert-error">No queue entry found for this appointment ID.</div>';
@@ -344,30 +466,95 @@ async function checkQueue() {
     }
 }
 
-async function getRecommendations() {
+// AI Symptom Assistant
+async function analyzeSymptoms() {
     const symptoms = document.getElementById('symptomText').value.trim();
     if (!symptoms) return;
     setLoading('recBtn', true);
+    
+    // Hide previous UI
+    document.getElementById('aiTriageOutputCard').style.display = 'none';
+    document.getElementById('recDoctorsGrid').innerHTML = '';
+    
     try {
-        const data    = await Api.get('/doctors/recommend?symptoms=' + encodeURIComponent(symptoms));
-        const doctors = data.data || [];
-        const specEl  = document.getElementById('aiSpecResult');
-        specEl.style.display = 'block';
-        specEl.textContent   = doctors.length
-            ? `Recommended specialization: ${doctors[0].specializationName} — ${doctors.length} doctor(s) available`
-            : 'No specialist matched. Showing General Medicine doctors.';
-
-        document.getElementById('recDoctorsGrid').innerHTML = doctors.map(d => `
+        // Step 1: Query Symptom Triage Results
+        const triageRes = await Api.get('/doctors/triage?symptoms=' + encodeURIComponent(symptoms));
+        if (triageRes.success) {
+            const t = triageRes.data;
+            document.getElementById('triageSpecText').textContent = t.specialization;
+            document.getElementById('triageActionText').textContent = t.action;
+            
+            const badge = document.getElementById('triagePriorityBadge');
+            badge.textContent = t.priority.toUpperCase();
+            if (t.priority === 'High') {
+                badge.className = 'badge badge-priority-high';
+            } else if (t.priority === 'Medium') {
+                badge.className = 'badge badge-priority-medium';
+            } else {
+                badge.className = 'badge badge-priority-low';
+            }
+            document.getElementById('aiTriageOutputCard').style.display = 'block';
+        }
+        
+        // Step 2: Query Recommended Doctors
+        const recRes = await Api.get('/doctors/recommend?symptoms=' + encodeURIComponent(symptoms));
+        const doctors = recRes.data || [];
+        
+        document.getElementById('recDoctorsGrid').innerHTML = doctors.map(d => {
+            const slotHtml = d.availableSlots && d.availableSlots.length > 0
+                ? `<div style="margin-top:0.75rem">
+                    <span class="label">Earliest slots:</span>
+                    <div class="slots-container">
+                        ${d.availableSlots.slice(0,3).map(slot => `
+                            <div class="slot-badge" style="font-size:0.72rem;padding:0.25rem 0.5rem" onclick="bookRecommendedSlot(${d.doctorId}, ${slot.availabilityId}, '${slot.date}')">
+                                ${slot.date.slice(5)}: ${slot.time.split(' ')[0]}
+                            </div>
+                        `).join('')}
+                    </div>
+                   </div>`
+                : `<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.5rem">No current active slots scheduled.</div>`;
+                
+            return `
             <div class="card doctor-card fade-in">
                 <div class="doctor-avatar"><span class="doctor-initials">${initials(d.name)}</span></div>
                 <div class="doctor-name">${d.name}</div>
                 <div class="doctor-spec">${d.specializationName}</div>
                 <div class="doctor-meta">${d.qualification || 'MBBS'}</div>
-                <div class="doctor-meta">${d.experienceYears ?? '—'} yrs experience &nbsp;·&nbsp; ${d.consultationDuration || 15} min/patient</div>
-                <button class="btn btn-outline btn-sm" style="margin-top:0.5rem" onclick="goBook(${d.doctorId})">Book Appointment</button>
-            </div>`).join('');
-    } catch {}
+                <div class="doctor-meta">${d.experienceYears ?? '—'} yrs experience &nbsp;·&nbsp; ${d.consultationDuration || 15} min</div>
+                ${slotHtml}
+                <button class="btn btn-outline btn-sm btn-full" style="margin-top:0.75rem" onclick="goBook(${d.doctorId})">Book Consultation</button>
+            </div>`;
+        }).join('');
+        
+        if (doctors.length === 0) {
+            document.getElementById('recDoctorsGrid').innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem">No doctors found matching this specialization.</div>';
+        }
+    } catch (err) {
+        showToast('Triage analysis failed', 'error');
+    }
     setLoading('recBtn', false);
+}
+
+function bookRecommendedSlot(doctorId, slotId, date) {
+    showSection('book');
+    setTimeout(() => {
+        // Set doctor
+        const sel = document.getElementById('doctorSelect');
+        for (const opt of sel.options) {
+            if (opt.value == doctorId) { opt.selected = true; break; }
+        }
+        
+        // Set date
+        document.getElementById('apptDate').value = date;
+        
+        // Trigger slots fetch and select the slot
+        onDoctorOrDateChange().then(() => {
+            setTimeout(() => {
+                const badge = document.querySelector(`.slot-badge[onclick*="${slotId}"]`);
+                if (badge) selectSlot(badge, slotId);
+            }, 300);
+        });
+    }, 400);
 }
 
 function goBook(docId) {
@@ -375,7 +562,8 @@ function goBook(docId) {
     setTimeout(() => {
         const sel = document.getElementById('doctorSelect');
         for (const opt of sel.options) if (opt.value == docId) { opt.selected = true; break; }
-    }, 600);
+        onDoctorOrDateChange();
+    }, 400);
 }
 
 function pad(n) { return n != null ? String(n).padStart(2,'0') : '—'; }

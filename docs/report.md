@@ -128,9 +128,43 @@ All tables satisfy Third Normal Form:
 
 ---
 
-## 7. AI Feature Details
+## 7. Frontend User Interface Screenshots
 
-### 7.1 Wait Time Prediction
+All interface screens are saved as PNG files in the `arch_diag/` directory:
+
+### 7.1 Landing Page (`index.html`)
+![Landing Page](../arch_diag/ss_landing.png)
+*Provides a clean, professional homepage displaying key Medicare services, live system metrics, and navigations.*
+
+### 7.2 User Sign In (`login.html`)
+![Sign In](../arch_diag/ss_login.png)
+*Allows both patients and administrators to log in using tabs. The Sign In submit button displays correctly and resolves session-based greeting correctly.*
+
+### 7.3 Patient Registration (`register.html`)
+![Register](../arch_diag/ss_register.png)
+*Allows new patients to sign up securely, writing registration details straight into the PostgreSQL backend.*
+
+### 7.4 Patient Dashboard (`dashboard.html`)
+![Patient Dashboard](../arch_diag/ss_dashboard.png)
+*Empowers patients to search and filter doctors, view dynamic AI recommendation results, book appointments, and check current appointments.*
+
+### 7.5 Doctors Directory (`doctors.html`)
+![Doctors](../arch_diag/ss_doctors.png)
+*Lists all available doctors and details (specialization, experience, and duration) with robust live search inputs.*
+
+### 7.6 Queue Status & AI Wait Prediction (`queue.html`)
+![Queue Status](../arch_diag/ss_queue.png)
+*Lets users look up appointment status, real-time token numbers, active queue positions, and estimated waiting minutes.*
+
+### 7.7 Admin Control Panel (`admin.html`)
+![Admin Dashboard](../arch_diag/ss_admin.png)
+*Provides administrators with high-level system metrics (total patients, doctors, appointments), doctor registration forms, appointment status modifications, and a live queue overview.*
+
+---
+
+## 8. AI Feature Details
+
+### 8.1 Wait Time Prediction
 
 **Location:** `QueueService.predictWaitTime(doctorId)`
 
@@ -148,7 +182,7 @@ predictedWait = waitingCount × baseTime × adjustmentFactor
 
 **Rationale:** Higher queue volumes introduce delays due to patient complexity variation and doctor fatigue. The adjustment factor models this empirically.
 
-### 7.2 Doctor Recommendation (NLP)
+### 8.2 Doctor Recommendation (NLP)
 
 **Location:** `DoctorService.recommendDoctors(symptoms)` and `mapSymptomsToSpecialization()`
 
@@ -169,7 +203,7 @@ predictedWait = waitingCount × baseTime × adjustmentFactor
 
 ---
 
-## 8. Software Engineering Practices
+## 9. Software Engineering Practices
 
 | Practice | Applied As |
 |----------|-----------|
@@ -185,7 +219,7 @@ predictedWait = waitingCount × baseTime × adjustmentFactor
 
 ---
 
-## 9. Testing Summary
+## 10. Testing Summary
 
 50 tests executed across schema, service logic, API integration, and UI:
 
@@ -202,7 +236,7 @@ See `docs/testing_report.md` for full details.
 
 ---
 
-## 10. Challenges and Resolutions
+## 11. Challenges and Resolutions
 
 | Challenge | Resolution |
 |-----------|-----------|
@@ -211,10 +245,11 @@ See `docs/testing_report.md` for full details.
 | CORS errors from browser to localhost:8080 | Added `CorsConfig` bean allowing all origins for development |
 | Token generation without concurrency control | Used MAX(tokenNumber) + 1 within the same day; acceptable for demo scale |
 | Symptom matching accuracy | Used regex patterns over simple `contains()` for better coverage |
+| Database schema mismatch for Admin | Altered the Postgres table column `username` to `name` and updated the SHA-256 hash to resolve the admin login crash |
 
 ---
 
-## 11. Future Enhancements
+## 12. Future Enhancements
 
 1. **JWT Authentication** — Replace localStorage session with stateless JWT tokens
 2. **BCrypt Passwords** — Replace SHA-256 with BCrypt for production-grade security
@@ -228,7 +263,7 @@ See `docs/testing_report.md` for full details.
 
 ---
 
-## 12. Conclusion
+## 13. Conclusion
 
 MediCare demonstrates a complete, production-structured healthcare appointment system developed in 2–3 weeks. The project covers the full software development lifecycle from requirements gathering and database design to implementation, testing, documentation, and deployment — all underpinned by professional engineering practices.
 

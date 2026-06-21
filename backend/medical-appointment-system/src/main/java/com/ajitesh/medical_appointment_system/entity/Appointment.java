@@ -30,6 +30,21 @@ public class Appointment {
     @Column(columnDefinition = "TEXT")
     private String reason;
 
+    @Column(columnDefinition = "TEXT")
+    private String diagnostics;
+
+    @Column(name = "triage_priority", length = 20)
+    private String triagePriority;
+
+    @Column(name = "triage_specialization", length = 100)
+    private String triageSpecialization;
+
+    @Column(name = "triage_action", length = 255)
+    private String triageAction;
+
+    @Column(name = "appointment_time", length = 50)
+    private String appointmentTime;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -51,6 +66,21 @@ public class Appointment {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public String getDiagnostics() { return diagnostics; }
+    public void setDiagnostics(String diagnostics) { this.diagnostics = diagnostics; }
+
+    public String getTriagePriority() { return triagePriority; }
+    public void setTriagePriority(String triagePriority) { this.triagePriority = triagePriority; }
+
+    public String getTriageSpecialization() { return triageSpecialization; }
+    public void setTriageSpecialization(String triageSpecialization) { this.triageSpecialization = triageSpecialization; }
+
+    public String getTriageAction() { return triageAction; }
+    public void setTriageAction(String triageAction) { this.triageAction = triageAction; }
+
+    public String getAppointmentTime() { return appointmentTime; }
+    public void setAppointmentTime(String appointmentTime) { this.appointmentTime = appointmentTime; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
