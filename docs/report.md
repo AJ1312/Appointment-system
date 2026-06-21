@@ -18,8 +18,14 @@
 
 ---
 
-## 2. System Architecture
+## 2. System Architecture & Use Case
 The application is built on a clean, decoupled **3-Tier Layered Architecture**:
+
+### Layered Architecture Diagram
+![System Architecture](../arch_diag/architecture.png)
+
+### System Use Case Diagram
+![System Use Case](../arch_diag/usecase.png)
 
 ```mermaid
 graph TD
@@ -97,6 +103,9 @@ Where:
 
 ## 5. Database Schema Design (3NF)
 All PostgreSQL tables are fully normalized to the Third Normal Form (3NF) to eliminate transitive dependencies and update anomalies:
+
+### Entity-Relationship Diagram (ERD)
+![Entity-Relationship Diagram](../arch_diag/erdiag.png)
 
 ```
 specialization (1) ─── (N) doctor
