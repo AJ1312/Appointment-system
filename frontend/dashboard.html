@@ -22,7 +22,6 @@
             <button class="sidebar-btn active" id="nav-overview" onclick="showSection('overview')">Overview</button>
             <button class="sidebar-btn" id="nav-book" onclick="showSection('book')">Book Appointment</button>
             <button class="sidebar-btn" id="nav-appointments" onclick="showSection('appointments')">My Appointments</button>
-            <button class="sidebar-btn" id="nav-queue" onclick="showSection('queue')">Queue Status</button>
             <button class="sidebar-btn" id="nav-recommend" onclick="showSection('recommend')">AI Symptom Assistant</button>
         </nav>
         <div class="sidebar-footer">
@@ -40,6 +39,31 @@
                 <h1 class="dash-title">Overview</h1>
                 <p class="dash-subtitle" id="welcomeMsg">Loading your dashboard...</p>
             </div>
+            
+            <!-- Dynamic Auto-updating Live Queue Status Card -->
+            <div class="card fade-in" id="liveQueueWidget" style="display:none; margin-bottom: 2rem; background: linear-gradient(135deg, #3b82f6, #06b6d4); color: white; padding: 1.5rem; border-radius: 12px; border: none; box-shadow: var(--shadow);">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                    <div>
+                        <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; opacity:0.9;">Your Active Appointment Queue</div>
+                        <h3 style="font-size:1.3rem; font-weight:700; margin:0.4rem 0 0.2rem 0; color:white;" id="lqDoctorName">—</h3>
+                        <div style="font-size:0.85rem; opacity:0.85;" id="lqDateTime">—</div>
+                    </div>
+                    <div>
+                        <span class="badge" style="background:rgba(255,255,255,0.25); color:white; font-size:1.1rem; padding:0.4rem 0.8rem; border-radius:30px; font-weight:800; border:1px solid rgba(255,255,255,0.1);" id="lqToken">—</span>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1.2rem; border-top:1px solid rgba(255,255,255,0.2); padding-top:1rem;">
+                    <div>
+                        <div style="font-size:0.75rem; opacity:0.85;">Current Queue Position</div>
+                        <strong style="font-size:1.6rem; font-weight:800;" id="lqPosition">—</strong>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem; opacity:0.85;">Estimated Wait Time</div>
+                        <strong style="font-size:1.6rem; font-weight:800;" id="lqWait">—</strong>
+                    </div>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="card stat-card">
                     <div class="stat-card-icon">
@@ -166,18 +190,6 @@
             </div>
         </div>
 
-        <!-- QUEUE STATUS -->
-        <div id="section-queue" style="display:none" class="fade-in">
-            <div class="dash-header">
-                <h1 class="dash-title">Queue Status</h1>
-                <p class="dash-subtitle">Enter your appointment ID to check your current position</p>
-            </div>
-            <div style="display:flex;gap:0.75rem;margin-bottom:2rem;flex-wrap:wrap">
-                <input type="number" id="apptIdInput" class="field-input" style="max-width:200px" placeholder="Appointment ID">
-                <button class="btn btn-primary" onclick="checkQueue()">Check Status</button>
-            </div>
-            <div id="queueStatusResult"></div>
-        </div>
 
         <!-- AI Symptom Assistant -->
         <div id="section-recommend" style="display:none" class="fade-in">
@@ -233,44 +245,67 @@ const today = new Date().toISOString().split('T')[0];
 document.getElementById('apptDate').min = today;
 document.getElementById('apptDate').value = today;
 
-let queueInterval = null;
+let activeQueueInterval = null;
 
 function showSection(sec) {
-    if (queueInterval) {
-        clearInterval(queueInterval);
-        queueInterval = null;
+    if (activeQueueInterval) {
+        clearInterval(activeQueueInterval);
+        activeQueueInterval = null;
     }
     document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
     document.getElementById('section-' + sec).style.display = 'block';
     document.querySelectorAll('.sidebar-btn').forEach(el => el.classList.remove('active'));
-    document.getElementById('nav-' + sec).classList.add('active');
+    if (document.getElementById('nav-' + sec)) {
+        document.getElementById('nav-' + sec).classList.add('active');
+    }
     
-    if (sec === 'overview') loadMyAppointments('overview');
+    if (sec === 'overview') {
+        loadMyAppointments('overview');
+        startLiveQueuePolling();
+    }
     if (sec === 'appointments') loadMyAppointments('all');
     if (sec === 'book') loadSpecializations();
-    if (sec === 'queue') autoLoadQueueStatus();
 }
 
-async function autoLoadQueueStatus() {
-    const input = document.getElementById('apptIdInput');
-    const result = document.getElementById('queueStatusResult');
-    result.innerHTML = '<div style="color:var(--text-secondary);font-size:0.9rem">Checking for active appointments...</div>';
+async function startLiveQueuePolling() {
+    if (activeQueueInterval) {
+        clearInterval(activeQueueInterval);
+        activeQueueInterval = null;
+    }
     
     try {
         const data = await Api.get('/appointments/patient/' + user.userId);
         const appts = data.data || [];
-        // Find latest booked/waiting appointment
         const active = appts.find(a => a.status === 'BOOKED');
+        const widget = document.getElementById('liveQueueWidget');
+        
         if (active) {
-            input.value = active.appointmentId;
-            checkQueue();
-            // Start auto refresh every 5 seconds
-            queueInterval = setInterval(checkQueue, 5000);
+            const updateWidget = async () => {
+                try {
+                    const qRes = await Api.get('/queue/appointment/' + active.appointmentId);
+                    if (qRes.success) {
+                        const q = qRes.data;
+                        document.getElementById('lqDoctorName').textContent = "Dr. " + q.doctorName;
+                        document.getElementById('lqDateTime').textContent = formatDate(active.appointmentDate) + " (" + (active.appointmentTime || 'Standard walk-in') + ")";
+                        document.getElementById('lqToken').textContent = 'Token: T-' + pad(q.tokenNumber);
+                        document.getElementById('lqPosition').textContent = q.queuePosition;
+                        document.getElementById('lqWait').textContent = q.estimatedWaitMinutes != null ? q.estimatedWaitMinutes + ' min' : '—';
+                        widget.style.display = 'block';
+                    } else {
+                        widget.style.display = 'none';
+                    }
+                } catch (e) {
+                    // Fail silently
+                }
+            };
+            
+            await updateWidget();
+            activeQueueInterval = setInterval(updateWidget, 5000);
         } else {
-            result.innerHTML = '<div class="alert alert-info">You have no active booked appointments. You can check any queue by entering an Appointment ID manually above.</div>';
+            widget.style.display = 'none';
         }
     } catch (err) {
-        result.innerHTML = '<div class="alert alert-error">Failed to check active appointments.</div>';
+        document.getElementById('liveQueueWidget').style.display = 'none';
     }
 }
 
@@ -433,38 +468,7 @@ async function bookAppointment(e) {
     setLoading('bookBtn', false);
 }
 
-async function checkQueue() {
-    const apptId = document.getElementById('apptIdInput').value;
-    if (!apptId) return;
-    const result = document.getElementById('queueStatusResult');
-    result.innerHTML = '';
-    try {
-        const data = await Api.get('/queue/appointment/' + apptId);
-        if (data.success) {
-            const q = data.data;
-            result.innerHTML = `
-                <div class="card token-card fade-in" style="max-width:360px">
-                    <div class="token-number">T-${pad(q.tokenNumber)}</div>
-                    <div class="token-lbl">${statusBadge(q.queueStatus)}</div>
-                    <div class="token-meta" style="margin-top:1.25rem">
-                        <div>
-                            <div class="token-meta-val">${q.queuePosition}</div>
-                            <div class="token-meta-key">Position</div>
-                        </div>
-                        <div>
-                            <div class="token-meta-val">${q.estimatedWaitMinutes ?? '—'}</div>
-                            <div class="token-meta-key">Wait (min)</div>
-                        </div>
-                    </div>
-                    <div style="margin-top:1.25rem;font-size:0.8rem;color:var(--text-secondary)">Doctor: ${q.doctorName}</div>
-                </div>`;
-        } else {
-            result.innerHTML = '<div class="alert alert-error">No queue entry found for this appointment ID.</div>';
-        }
-    } catch {
-        result.innerHTML = '<div class="alert alert-error">Connection error.</div>';
-    }
-}
+// checkQueue removed, now handled automatically on the overview dashboard.
 
 // AI Symptom Assistant
 async function analyzeSymptoms() {
@@ -572,6 +576,7 @@ function initials(name) { return name.split(' ').map(w => w[0]).slice(0,2).join(
 function logout() { Session.clear(); window.location.href = 'index.html'; }
 
 loadMyAppointments('overview');
+startLiveQueuePolling();
 </script>
 </body>
 </html>

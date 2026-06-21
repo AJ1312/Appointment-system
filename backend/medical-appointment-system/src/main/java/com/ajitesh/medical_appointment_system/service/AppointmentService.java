@@ -28,19 +28,22 @@ public class AppointmentService {
     private final QueueEntryRepository queueEntryRepository;
     private final DoctorAvailabilityRepository doctorAvailabilityRepository;
     private final DoctorService doctorService;
+    private final EmailService emailService;
 
     public AppointmentService(AppointmentRepository appointmentRepository,
                                PatientRepository patientRepository,
                                DoctorRepository doctorRepository,
                                QueueEntryRepository queueEntryRepository,
                                DoctorAvailabilityRepository doctorAvailabilityRepository,
-                               DoctorService doctorService) {
+                               DoctorService doctorService,
+                               EmailService emailService) {
         this.appointmentRepository = appointmentRepository;
         this.patientRepository = patientRepository;
         this.doctorRepository = doctorRepository;
         this.queueEntryRepository = queueEntryRepository;
         this.doctorAvailabilityRepository = doctorAvailabilityRepository;
         this.doctorService = doctorService;
+        this.emailService = emailService;
     }
 
     public AppointmentResponse bookAppointment(AppointmentRequest request) {
@@ -98,6 +101,20 @@ public class AppointmentService {
         queueEntry.setEstimatedWaitMinutes(estimatedWait);
         queueEntry.setQueueStatus("WAITING");
         queueEntryRepository.save(queueEntry);
+
+        try {
+            emailService.sendBookingConfirmation(
+                    patient.getEmail(),
+                    patient.getName(),
+                    doctor.getName(),
+                    saved.getAppointmentDate().toString(),
+                    saved.getAppointmentTime(),
+                    queueEntry.getTokenNumber(),
+                    queueEntry.getQueuePosition()
+            );
+        } catch (Exception e) {
+            System.err.println("Failed to send booking email confirmation: " + e.getMessage());
+        }
 
         return buildResponse(saved, queueEntry);
     }
@@ -202,5 +219,89 @@ public class AppointmentService {
             resp.setEstimatedWaitMinutes(q.getEstimatedWaitMinutes());
         }
         return resp;
+    }
+
+    public AppointmentResponse rescheduleAppointment(Integer appointmentId, Integer availabilityId) {
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new RuntimeException("Appointment not found: " + appointmentId));
+        
+        if (!"BOOKED".equals(appointment.getStatus())) {
+            throw new RuntimeException("Cannot reschedule appointment with status: " + appointment.getStatus());
+        }
+
+        String oldDate = appointment.getAppointmentDate().toString();
+        String oldTime = appointment.getAppointmentTime();
+
+        // Release old slot if it was a doctor availability slot
+        String timeString = appointment.getAppointmentTime();
+        if (timeString != null && timeString.contains(" - ")) {
+            String[] parts = timeString.split(" - ");
+            if (parts.length == 2) {
+                try {
+                    java.time.LocalTime start = java.time.LocalTime.parse(parts[0].trim());
+                    java.time.LocalTime end = java.time.LocalTime.parse(parts[1].trim());
+                    List<DoctorAvailability> oldSlots = doctorAvailabilityRepository
+                            .findByDoctor_DoctorIdAndAvailableDateOrderByStartTimeAsc(appointment.getDoctor().getDoctorId(), appointment.getAppointmentDate());
+                    for (DoctorAvailability oldSlot : oldSlots) {
+                        if (oldSlot.getStartTime().equals(start) && oldSlot.getEndTime().equals(end) && oldSlot.getIsBooked()) {
+                            oldSlot.setIsBooked(false);
+                            doctorAvailabilityRepository.save(oldSlot);
+                            break;
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Could not parse or release old slot: " + e.getMessage());
+                }
+            }
+        }
+
+        // Find and book the new slot
+        DoctorAvailability newSlot = doctorAvailabilityRepository.findById(availabilityId)
+                .orElseThrow(() -> new RuntimeException("Availability slot not found: " + availabilityId));
+        if (newSlot.getIsBooked()) {
+            throw new RuntimeException("The selected availability slot is already booked.");
+        }
+
+        newSlot.setIsBooked(true);
+        doctorAvailabilityRepository.save(newSlot);
+
+        appointment.setAppointmentDate(newSlot.getAvailableDate());
+        appointment.setAppointmentTime(newSlot.getStartTime().toString() + " - " + newSlot.getEndTime().toString());
+        Appointment saved = appointmentRepository.save(appointment);
+
+        QueueEntry queueEntry = queueEntryRepository.findByAppointment_AppointmentId(appointmentId)
+                .orElse(new QueueEntry());
+        
+        int tokenNumber = generateToken(appointment.getDoctor().getDoctorId());
+        long waitingCount = queueEntryRepository.countWaitingByDoctorId(appointment.getDoctor().getDoctorId());
+        int queuePos = (int) waitingCount + 1;
+        int consultDuration = appointment.getDoctor().getConsultationDuration() != null 
+                ? appointment.getDoctor().getConsultationDuration() : 15;
+        int estimatedWait = queuePos * consultDuration;
+
+        queueEntry.setAppointment(saved);
+        queueEntry.setTokenNumber(tokenNumber);
+        queueEntry.setQueuePosition(queuePos);
+        queueEntry.setEstimatedWaitMinutes(estimatedWait);
+        queueEntry.setQueueStatus("WAITING");
+        queueEntryRepository.save(queueEntry);
+
+        try {
+            emailService.sendRescheduleNotification(
+                    appointment.getPatient().getEmail(),
+                    appointment.getPatient().getName(),
+                    appointment.getDoctor().getName(),
+                    oldDate,
+                    oldTime,
+                    saved.getAppointmentDate().toString(),
+                    saved.getAppointmentTime()
+            );
+        } catch (Exception e) {
+            System.err.println("Error sending reschedule email: " + e.getMessage());
+        }
+
+        realignQueueForDoctor(appointment.getDoctor().getDoctorId());
+
+        return buildResponse(saved, queueEntry);
     }
 }

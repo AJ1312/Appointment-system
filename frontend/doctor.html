@@ -142,6 +142,32 @@
     </div>
 </div>
 
+<!-- Reschedule Modal -->
+<div id="rescheduleModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.4); backdrop-filter:blur(4px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:1.5rem;">
+    <div class="card" style="width:100%; max-width:500px; padding:2rem; background:#fff; position:relative;">
+        <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-primary); margin-bottom:0.5rem;">Reschedule Appointment</h3>
+        <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:1.5rem;">Reschedule appointment for patient <strong id="reschPatientName"></strong></p>
+        
+        <input type="hidden" id="reschApptId">
+        
+        <div class="field">
+            <label class="field-label">Select Date</label>
+            <input type="date" id="reschDate" class="field-input" onchange="loadReschSlots()" required>
+        </div>
+        
+        <div class="field" id="reschSlotsField" style="margin-top:1rem;">
+            <label class="field-label">Available Slots</label>
+            <div class="slots-container" id="reschSlotsContainer" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;"></div>
+            <input type="hidden" id="selectedReschSlotId">
+        </div>
+        
+        <div style="display:flex; justify-content:flex-end; gap:0.75rem; margin-top:1.5rem;">
+            <button class="btn btn-outline" onclick="closeRescheduleModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitReschedule()" id="submitReschBtn">Confirm Reschedule</button>
+        </div>
+    </div>
+</div>
+
 <script src="app.js"></script>
 <script>
 const user = Session.getUser();
@@ -199,6 +225,7 @@ async function loadAppointments() {
                             ${a.status === 'BOOKED' ? `
                                 <button class="btn btn-success btn-sm" onclick="changeApptStatus(${a.appointmentId}, 'COMPLETED')">Complete</button>
                                 <button class="btn btn-danger btn-sm" onclick="changeApptStatus(${a.appointmentId}, 'CANCELLED')">Cancel</button>
+                                <button class="btn btn-outline btn-sm" onclick="openRescheduleModal(${a.appointmentId}, '${a.patientName}')">Reschedule</button>
                                 ${a.queuePosition > 1 ? `
                                     <button class="btn btn-primary btn-sm" onclick="prioritizePatient(${a.appointmentId})">Bump to Front</button>
                                 ` : ''}
@@ -379,11 +406,85 @@ async function deleteSlot(id) {
     }
 }
 
+function openRescheduleModal(id, patientName) {
+    document.getElementById('reschApptId').value = id;
+    document.getElementById('reschPatientName').textContent = patientName;
+    
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('reschDate').value = todayStr;
+    document.getElementById('reschDate').min = todayStr;
+    document.getElementById('selectedReschSlotId').value = '';
+    
+    document.getElementById('rescheduleModal').style.display = 'flex';
+    loadReschSlots();
+}
+
+function closeRescheduleModal() {
+    document.getElementById('rescheduleModal').style.display = 'none';
+}
+
+async function loadReschSlots() {
+    const dateStr = document.getElementById('reschDate').value;
+    const container = document.getElementById('reschSlotsContainer');
+    document.getElementById('selectedReschSlotId').value = '';
+    container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.85rem">Loading slots...</div>';
+    
+    try {
+        const d = await Api.get(`/doctors/${user.userId}/availability?date=${dateStr}`);
+        const slots = d.data || [];
+        const unbooked = slots.filter(s => !s.isBooked);
+        
+        if (unbooked.length > 0) {
+            container.innerHTML = unbooked.map(s => `
+                <div class="slot-badge" onclick="selectReschSlot(this, ${s.availabilityId})">
+                    ${s.startTime.slice(0,5)} - ${s.endTime.slice(0,5)}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="alert alert-error" style="font-size:0.85rem; padding: 0.5rem 1rem;">No available slots. Create one in schedule tab first.</div>';
+        }
+    } catch (err) {
+        container.innerHTML = '<div class="alert alert-error" style="font-size:0.85rem; padding: 0.5rem 1rem;">Failed to load slots.</div>';
+    }
+}
+
+function selectReschSlot(el, id) {
+    document.querySelectorAll('#reschSlotsContainer .slot-badge').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('selectedReschSlotId').value = id;
+}
+
+async function submitReschedule() {
+    const apptId = document.getElementById('reschApptId').value;
+    const slotId = document.getElementById('selectedReschSlotId').value;
+    
+    if (!slotId) {
+        showToast('Please select a time slot.', 'error');
+        return;
+    }
+    
+    setLoading('submitReschBtn', true);
+    try {
+        const res = await Api.put(`/appointments/${apptId}/reschedule`, { availabilityId: slotId });
+        if (res.success) {
+            showToast('Appointment rescheduled successfully!', 'success');
+            closeRescheduleModal();
+            loadAppointments();
+        } else {
+            showToast(res.message || 'Failed to reschedule.', 'error');
+        }
+    } catch (err) {
+        showToast('Connection error.', 'error');
+    }
+    setLoading('submitReschBtn', false);
+}
+
 function logout() { Session.clear(); window.location.href = 'index.html'; }
 
 // Init view
 showSection('appointments');
 document.getElementById('diagModal').style.display = 'none'; // Ensure hidden initially
+document.getElementById('rescheduleModal').style.display = 'none'; // Ensure hidden initially
 </script>
 </body>
 </html>

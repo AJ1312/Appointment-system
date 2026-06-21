@@ -58,4 +58,12 @@ public class AppointmentController {
         return ResponseEntity.ok(ApiResponse.success("Diagnostics updated",
                 appointmentService.updateDiagnostics(id, body.get("diagnostics"))));
     }
+
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> reschedule(
+            @PathVariable Integer id,
+            @RequestParam Integer availabilityId) {
+        return ResponseEntity.ok(ApiResponse.success("Appointment rescheduled successfully",
+                appointmentService.rescheduleAppointment(id, availabilityId)));
+    }
 }

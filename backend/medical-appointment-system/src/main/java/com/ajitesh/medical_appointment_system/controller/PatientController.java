@@ -7,6 +7,7 @@ import com.ajitesh.medical_appointment_system.dto.PatientDTO;
 import com.ajitesh.medical_appointment_system.dto.PatientRegistrationRequest;
 import com.ajitesh.medical_appointment_system.entity.Patient;
 import com.ajitesh.medical_appointment_system.service.PatientService;
+import com.ajitesh.medical_appointment_system.service.EmailService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,9 +20,11 @@ import java.util.stream.Collectors;
 public class PatientController {
 
     private final PatientService patientService;
+    private final EmailService emailService;
 
-    public PatientController(PatientService patientService) {
+    public PatientController(PatientService patientService, EmailService emailService) {
         this.patientService = patientService;
+        this.emailService = emailService;
     }
 
     @PostMapping("/register")
@@ -33,8 +36,11 @@ public class PatientController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         return patientService.login(request.getEmail(), request.getPassword())
-                .map(p -> ResponseEntity.ok(ApiResponse.success("Login successful",
-                        new LoginResponse("Login successful", "PATIENT", p.getPatientId(), p.getName()))))
+                .map(p -> {
+                    emailService.sendLoginAlert(p.getEmail(), p.getName(), "Patient");
+                    return ResponseEntity.ok(ApiResponse.success("Login successful",
+                            new LoginResponse("Login successful", "PATIENT", p.getPatientId(), p.getName())));
+                })
                 .orElse(ResponseEntity.status(401).body(ApiResponse.error("Invalid credentials")));
     }
 

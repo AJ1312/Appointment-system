@@ -6,6 +6,7 @@ import com.ajitesh.medical_appointment_system.dto.LoginRequest;
 import com.ajitesh.medical_appointment_system.dto.LoginResponse;
 import com.ajitesh.medical_appointment_system.entity.DoctorAvailability;
 import com.ajitesh.medical_appointment_system.service.DoctorService;
+import com.ajitesh.medical_appointment_system.service.EmailService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,9 +21,11 @@ import java.util.Map;
 public class DoctorController {
 
     private final DoctorService doctorService;
+    private final EmailService emailService;
 
-    public DoctorController(DoctorService doctorService) {
+    public DoctorController(DoctorService doctorService, EmailService emailService) {
         this.doctorService = doctorService;
+        this.emailService = emailService;
     }
 
     @GetMapping
@@ -71,8 +74,11 @@ public class DoctorController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         return doctorService.login(request.getEmail(), request.getPassword())
-                .map(d -> ResponseEntity.ok(ApiResponse.success("Doctor login successful",
-                        new LoginResponse("Login successful", "DOCTOR", d.getDoctorId(), d.getName()))))
+                .map(d -> {
+                    emailService.sendLoginAlert(d.getEmail(), d.getName(), "Doctor");
+                    return ResponseEntity.ok(ApiResponse.success("Doctor login successful",
+                            new LoginResponse("Login successful", "DOCTOR", d.getDoctorId(), d.getName())));
+                })
                 .orElse(ResponseEntity.status(401).body(ApiResponse.error("Invalid doctor credentials")));
     }
 

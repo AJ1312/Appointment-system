@@ -1,275 +1,165 @@
-# Project Report
-## MediCare – AI-Assisted Medical Appointment and Queue Management System
+# Project Report: MediCare
+## AI-Assisted Medical Appointment and Queue Management System
 
-**Institution:** Hindalco Industries Limited (Internship Project)
-**Author:** Ajitesh Sharma
-**Duration:** 2026-06-01 to 2026-06-19 (2–3 Weeks)
-**Repository:** https://github.com/AjiteshSharma/Medical_appointment_system_Hindalco
+**Institution:** Hindalco Industries Limited (Internship Project)  
+**Author:** Ajitesh Sharma  
+**Duration:** 2026-06-01 to 2026-06-21  
+**Repository:** [Appointment-system](https://github.com/AJ1312/Appointment-system)
 
 ---
 
 ## 1. Executive Summary
+**MediCare** is a production-grade full-stack web platform designed to solve patient scheduling congestion, consultation bottlenecks, and long clinic wait times. Developed as a major project during a Hindalco Industries internship, the platform allows patients to register, search for medical specialists, book appointments, receive real-time queue tokens, and track their estimated wait times dynamically.
 
-MediCare is a full-stack web-based Medical Appointment and Queue Management System developed as an internship project at Hindalco. The system enables patients to register, discover specialists, book appointments, and track their real-time queue position. It incorporates two AI features: an intelligent wait-time prediction engine and a symptom-based doctor recommendation system.
-
-The project was built following professional software engineering practices including Agile iterative development, 3-Tier Layered Architecture, 3NF database normalisation, Single Responsibility Principle, and continuous Git version control.
+### Key Enhancements & New Features:
+* **Asynchronous Email Notification Pipeline**: Automatic confirmation messages are sent on booking, security alerts are sent on successful logins (Patients, Doctors, and Admins), and update notifications are sent on scheduling adjustments.
+* **Doctor Rescheduling Facility**: Built-in slot management for doctors to rearrange patient appointments dynamically based on availability.
+* **Automated Dashboard Live Queue Tracking**: The patient dashboard now has a prominent "Live Queue Status" card on the main Overview page that updates every 5 seconds, eliminating manual lookup forms.
 
 ---
 
 ## 2. System Architecture
+The application is built on a clean, decoupled **3-Tier Layered Architecture**:
 
-![System Architecture Diagram](../arch_diag/architecture_diagram.png)
-
-The system follows a strict 3-Tier Layered Architecture:
-
-| Tier | Technology | Responsibility |
-|------|-----------|----------------|
-| Presentation | HTML5, CSS3, Vanilla JS | User interface, API consumption |
-| Application | Spring Boot 4.0, Java 21 | Business logic, REST API |
-| Data | PostgreSQL 15 | Persistent storage |
-
-**Backend package structure:**
-- `entity/` — JPA-mapped database tables
-- `repository/` — Spring Data JPA interfaces
-- `service/` — Business logic and AI feature implementations
-- `controller/` — REST endpoint handlers
-- `dto/` — Data Transfer Objects for clean API contracts
-- `config/` — CORS and global exception handling
-
----
-
-## 3. Features Implemented
-
-### Core Features
-
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Patient Registration | Complete | SHA-256 password hashing |
-| Patient Login | Complete | Email + password |
-| Admin Login | Complete | Role-based access |
-| Doctor Listing | Complete | With specialization filter and search |
-| Appointment Booking | Complete | Auto-assigns token and queue position |
-| Token Generation | Complete | Incremental per doctor per day |
-| Queue Management | Complete | WAITING → COMPLETED / CANCELLED |
-| Queue Status Tracking | Complete | By appointment ID |
-| Admin Dashboard | Complete | Live stats: patients, doctors, appointments, today |
-| Doctor Management | Complete | Add / view / list by specialization |
-| Appointment Status Update | Complete | Admin can update via dropdown |
-
-### AI Features
-
-| Feature | Endpoint | Implementation |
-|---------|----------|----------------|
-| Wait Time Prediction | `GET /api/queue/predict-wait/{doctorId}` | Queue-length × consultation duration × load factor |
-| Doctor Recommendation | `GET /api/doctors/recommend?symptoms=` | Keyword regex → specialization → doctor list |
-
----
-
-## 4. Database Design
-
-### ER Relationships
-
-```
-specialization (1) ──── (N) doctor
-patient        (1) ──── (N) appointment
-doctor         (1) ──── (N) appointment
-appointment    (1) ──── (1) queue_entry
+```mermaid
+graph TD
+    subgraph Presentation Tier
+        A[HTML5 / CSS3 / Vanilla JS]
+    end
+    subgraph Application Tier
+        B[Spring Boot Controller] --> C[Spring Boot Service]
+    end
+    subgraph Persistent Storage
+        C --> D[(PostgreSQL Database)]
+    end
 ```
 
-### Schema (3NF Compliant)
-
-All tables satisfy Third Normal Form:
-- Every attribute depends on the primary key
-- No transitive dependencies
-- No partial dependencies
-
-| Table | Primary Key | Foreign Keys |
-|-------|-------------|--------------|
-| specialization | specialization_id | — |
-| doctor | doctor_id | specialization_id |
-| patient | patient_id | — |
-| admin | admin_id | — |
-| appointment | appointment_id | patient_id, doctor_id |
-| queue_entry | queue_id | appointment_id (unique) |
+### Technical Stack:
+* **Frontend**: Vanilla HTML5, CSS3 Custom Properties (CSS variables, flexbox, grid, glassmorphism), and Vanilla JS (`fetch` API, session store, local storage).
+* **Backend**: Spring Boot 4.0, Java 21, Spring Data JPA, JavaMailSender.
+* **Database**: PostgreSQL 15, 3NF Normalized.
 
 ---
 
-## 5. API Summary
+## 3. Implemented Core & AI Features
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/patients/register | Register patient |
-| POST | /api/patients/login | Patient login |
-| GET | /api/doctors | List all doctors |
-| GET | /api/doctors/recommend?symptoms= | AI recommendation |
-| GET | /api/specializations | List specializations |
-| POST | /api/appointments | Book appointment + token |
-| GET | /api/appointments/patient/{id} | Patient's appointments |
-| PUT | /api/appointments/{id}/status | Update status |
-| GET | /api/queue/appointment/{id} | Queue status |
-| GET | /api/queue/waiting | Live waiting queue |
-| GET | /api/queue/predict-wait/{doctorId} | AI wait prediction |
-| POST | /api/admin/login | Admin login |
-| GET | /api/admin/dashboard/stats | System stats |
+### 3.1 Core Features Checklist
+* **Role-Based Login & Security**: Separate portal layers for Patients, Doctors, and System Admins. Hashed credentials protect resources.
+* **Doctor Schedule & Availability**: Custom time-slots created by doctors, searchable by specialization.
+* **Token Allocation**: Real-time incrementing patient token numbers grouped by doctor per day.
+* **Queue Triage Engine**: Auto-calculation of initial wait times and positions.
+* **Patient Overview widget**: Live queue status updates automatically without requiring separate checks.
+* **Doctor Reschedule tool**: Doctors can change appointment slots, modifying the queue dynamically.
+
+### 3.2 Security Email Alert System
+* **Appointment Confirmed**: Sent immediately upon booking.
+* **Login Security Alert**: Triggers on successful logins for Admins, Doctors, or Patients, reporting role, timestamps, and origin.
+* **Reschedule Notification**: Alerts the patient of schedule adjustments made by the physician.
 
 ---
 
-## 6. Frontend Pages
+## 4. AI Feature & Triage Algorithms
 
-| Page | Path | Audience | Key Functionality |
-|------|------|----------|-------------------|
-| Landing Page | index.html | Public | Overview, AI demo, navigation |
-| Sign In | login.html | Patient / Admin | Role-based login |
-| Register | register.html | Patient | New account creation |
-| Patient Dashboard | dashboard.html | Patient | Overview, booking, history, queue, AI finder |
-| Admin Dashboard | admin.html | Admin | Stats, patient list, doctor list, appointments, queue, add doctor |
-| Doctors | doctors.html | Public | Browse and search specialists |
-| Queue Status | queue.html | Public | Track queue, AI wait prediction |
+### 4.1 Wait Time Prediction
+* **Location**: `QueueService.predictWaitTime(doctorId)`
+* **Algorithm Description**: Wait times are calculated using doctor-specific average consultation times, current waiting list length, and a dynamic load coefficient adjusting for queue congestion:
+
+$$\text{Predicted Wait Time} = \text{Queue Length} \times \text{Average Consult Duration} \times \text{Load Factor}$$
+
+Where:
+* **Queue Length**: Count of waiting entries for the doctor on that date.
+* **Average Consult Duration**: Default 15 minutes (configurable per doctor).
+* **Load Factor**:
+  * $1.0$ (when Queue Length $\le 5$)
+  * $1.1$ (when Queue Length $\le 10$)
+  * $1.2$ (when Queue Length $> 10$, modelling delay overheads)
 
 ---
 
-## 7. Frontend User Interface Screenshots
+### 4.2 NLP Triage & Specialty Recommender
+* **Location**: `DoctorService.runTriageAnalysis(symptoms)`
+* **Algorithm Description**: Regular expression keyword mapping matches patient-described symptoms directly to corresponding specialties and priority levels:
 
-All interface screens are saved as PNG files in the `arch_diag/` directory:
+| Keyword Patterns | Specialization | Priority Level | Suggested Triage Action |
+| :--- | :--- | :--- | :--- |
+| `chest`, `heart`, `cardiac`, `palpitation` | Cardiology | High | Immediate specialist booking |
+| `seizure`, `stroke`, `headache`, `neuro` | Neurology | High / Medium | Book neurological consultation |
+| `fracture`, `broken bone`, `ortho`, `joint` | Orthopedics | High / Medium | Orthopedic consultation soon |
+| `skin`, `rash`, `acne`, `derma` | Dermatology | Low | Schedule standard appointment |
+| `child`, `infant`, `pediatric` | Pediatrics | Medium | Schedule pediatric appointment |
+| `eye`, `vision`, `ophthal` | Ophthalmology | Medium | Standard vision exam |
+| `teeth`, `dental`, `tooth` | Dentistry | Medium | Dental appointment |
+| `stomach`, `gastro`, `digestion` | Gastroenterology | Medium | Digestive checkup |
+| `kidney`, `bladder`, `urology` | Urology | Medium | Urology consult |
+| *No Match / General Symptoms* | General Medicine | Low | Primary care consultation |
 
-### 7.1 Landing Page (`index.html`)
+---
+
+## 5. Database Schema Design (3NF)
+All PostgreSQL tables are fully normalized to the Third Normal Form (3NF) to eliminate transitive dependencies and update anomalies:
+
+```
+specialization (1) ─── (N) doctor
+patient        (1) ─── (N) appointment
+doctor         (1) ─── (N) appointment
+appointment    (1) ─── (1) queue_entry
+doctor         (1) ─── (N) doctor_availability
+```
+
+### Table Dictionary:
+1. `specialization`: List of clinical specialties.
+2. `doctor`: Healthcare provider details.
+3. `patient`: Registered patient profile data.
+4. `admin`: Administrative dashboard user.
+5. `appointment`: Booking transactions, diagnosis notes, and triage flags.
+6. `queue_entry`: Live queue positions, wait predictions, and status.
+7. `doctor_availability`: Doctor time slot configurations.
+
+---
+
+## 6. System Walkthrough & Screenshots
+
+### 6.1 Landing Page (`index.html`)
 ![Landing Page](../arch_diag/ss_landing.png)
-*Provides a clean, professional homepage displaying key Medicare services, live system metrics, and navigations.*
+*Medicare landing page showing system benefits, live statistic mockups, and symptom search recommendations.*
 
-### 7.2 User Sign In (`login.html`)
+### 6.2 Patient Registration (`register.html`)
+![Patient Registration](../arch_diag/ss_register.png)
+*Secure registration form gathering name, email, phone number, gender, date of birth, and password.*
+
+### 6.3 Sign In Portal (`login.html`)
 ![Sign In](../arch_diag/ss_login.png)
-*Allows both patients and administrators to log in using tabs. The Sign In submit button displays correctly and resolves session-based greeting correctly.*
+*Unified sign-in interface allowing role selection (Patient/Doctor/Admin) with tab switches.*
 
-### 7.3 Patient Registration (`register.html`)
-![Register](../arch_diag/ss_register.png)
-*Allows new patients to sign up securely, writing registration details straight into the PostgreSQL backend.*
-
-### 7.4 Patient Dashboard (`dashboard.html`)
+### 6.4 Patient Overview Dashboard (`dashboard.html`)
 ![Patient Dashboard](../arch_diag/ss_dashboard.png)
-*Empowers patients to search and filter doctors, view dynamic AI recommendation results, book appointments, and check current appointments.*
+*Initial overview screen indicating system statistics and recent consultation logs.*
 
-### 7.5 Doctors Directory (`doctors.html`)
-![Doctors](../arch_diag/ss_doctors.png)
-*Lists all available doctors and details (specialization, experience, and duration) with robust live search inputs.*
+### 6.5 Automated Live Queue Card
+![Dashboard with Queue card](../arch_diag/ss_dashboard_queue.png)
+*Overview dashboard with the automated Live Queue Status card that updates every 5 seconds.*
 
-### 7.6 Queue Status & AI Wait Prediction (`queue.html`)
-![Queue Status](../arch_diag/ss_queue.png)
-*Lets users look up appointment status, real-time token numbers, active queue positions, and estimated waiting minutes.*
+### 6.6 Doctor Appointments & Actions (`doctor.html`)
+![Doctor Dashboard](../arch_diag/ss_doctors.png)
+*Doctor portal displaying active consultations, triage alerts, and diagnostic controls.*
 
-### 7.7 Admin Control Panel (`admin.html`)
+### 6.7 Doctor Reschedule Modal
+![Reschedule Modal](../arch_diag/ss_reschedule_modal.png)
+*Rescheduling window displaying slot availabilities. Confirming frees the previous slot and updates the queue.*
+
+### 6.8 System Admin Dashboard (`admin.html`)
 ![Admin Dashboard](../arch_diag/ss_admin.png)
-*Provides administrators with high-level system metrics (total patients, doctors, appointments), doctor registration forms, appointment status modifications, and a live queue overview.*
+*Control panel for platform administrators showing system analytics, doctor registration, and queue oversight.*
 
 ---
 
-## 8. AI Feature Details
-
-### 8.1 Wait Time Prediction
-
-**Location:** `QueueService.predictWaitTime(doctorId)`
-
-**Algorithm:**
-```
-waitingCount = COUNT(queue_entry WHERE doctor = doctorId AND status = WAITING)
-baseTime = 15 minutes (default consultation duration)
-adjustmentFactor =
-    1.0  if waitingCount ≤ 5
-    1.1  if waitingCount ≤ 10
-    1.2  if waitingCount > 10
-
-predictedWait = waitingCount × baseTime × adjustmentFactor
-```
-
-**Rationale:** Higher queue volumes introduce delays due to patient complexity variation and doctor fatigue. The adjustment factor models this empirically.
-
-### 8.2 Doctor Recommendation (NLP)
-
-**Location:** `DoctorService.recommendDoctors(symptoms)` and `mapSymptomsToSpecialization()`
-
-**Symptom-to-Specialization Mapping:**
-
-| Keyword Pattern | Specialization |
-|-----------------|----------------|
-| chest, heart, cardiac | Cardiology |
-| brain, headache, neuro, seizure | Neurology |
-| bone, joint, fracture, ortho | Orthopedics |
-| skin, rash, acne, derma | Dermatology |
-| child, infant, pediatric | Pediatrics |
-| eye, vision, ophthal | Ophthalmology |
-| teeth, dental, tooth, gum | Dentistry |
-| stomach, gastro, digestion | Gastroenterology |
-| kidney, bladder, urology | Urology |
-| (no match) | General Medicine |
+## 7. Software Engineering Best Practices
+* **Single Responsibility Principle (SRP)**: Separated REST endpoints, service orchestration, database mapping, and mail dispatch into independent layers.
+* **DRY (Don't Repeat Yourself)**: Shared utilities (formatting, API handling) centralized in `app.js`.
+* **CORS Middleware**: Dynamic configurations allowed secure cross-origin HTTP operations from localhost:3000 to localhost:8080.
+* **Global Exception Advice**: Unified error responses prevent backend stack traces from being exposed to the client.
 
 ---
 
-## 9. Software Engineering Practices
-
-| Practice | Applied As |
-|----------|-----------|
-| Agile / Incremental | Feature-by-feature delivery; core first, AI second |
-| Layered Architecture | Controller → Service → Repository → Entity |
-| Single Responsibility | Each class has one clearly defined purpose |
-| Separation of Concerns | Frontend, backend, and database are fully independent |
-| 3NF Normalisation | All 6 database tables satisfy 3NF |
-| DRY | Generic `ApiResponse<T>` wrapper; shared `app.js` utilities |
-| Git Version Control | Committed after each feature milestone |
-| Global Exception Handling | `@RestControllerAdvice` catches and formats all errors |
-| DTO Pattern | Request/response objects decoupled from entities |
-
----
-
-## 10. Testing Summary
-
-50 tests executed across schema, service logic, API integration, and UI:
-
-| Category | Tests | Passed |
-|----------|-------|--------|
-| Database schema | 5 | 5 |
-| Service logic | 12 | 12 |
-| API integration | 10 | 10 |
-| Frontend UI | 17 | 17 |
-| Edge cases | 6 | 6 |
-| **Total** | **50** | **50** |
-
-See `docs/testing_report.md` for full details.
-
----
-
-## 11. Challenges and Resolutions
-
-| Challenge | Resolution |
-|-----------|-----------|
-| Spring Boot 4.0 uses `spring-boot-starter-webmvc` not `spring-boot-starter-web` | Updated pom.xml after reading Spring Boot 4 migration notes |
-| JPQL `CURRENT_DATE` in native query context | Switched to JPA derived query with `LocalDate.now()` parameter |
-| CORS errors from browser to localhost:8080 | Added `CorsConfig` bean allowing all origins for development |
-| Token generation without concurrency control | Used MAX(tokenNumber) + 1 within the same day; acceptable for demo scale |
-| Symptom matching accuracy | Used regex patterns over simple `contains()` for better coverage |
-| Database schema mismatch for Admin | Altered the Postgres table column `username` to `name` and updated the SHA-256 hash to resolve the admin login crash |
-
----
-
-## 12. Future Enhancements
-
-1. **JWT Authentication** — Replace localStorage session with stateless JWT tokens
-2. **BCrypt Passwords** — Replace SHA-256 with BCrypt for production-grade security
-3. **Email Notifications** — Send booking confirmations via JavaMailSender
-4. **Machine Learning** — Replace rule-based wait prediction with a trained ML model using historical data
-5. **NLP Enhancement** — Integrate spaCy or a medical NLP library for richer symptom understanding
-6. **WebSocket Queue** — Push live queue updates to patients via WebSockets
-7. **Mobile Responsive** — Full mobile layout optimisation
-8. **Telemedicine** — Video consultation integration
-9. **Analytics Dashboard** — Charts for appointment trends, doctor utilisation, peak hours
-
----
-
-## 13. Conclusion
-
-MediCare demonstrates a complete, production-structured healthcare appointment system developed in 2–3 weeks. The project covers the full software development lifecycle from requirements gathering and database design to implementation, testing, documentation, and deployment — all underpinned by professional engineering practices.
-
-The two AI features (wait prediction and doctor recommendation) add genuine practical value and serve as a foundation for more sophisticated ML-driven healthcare assistants in future iterations.
-
----
-
-*Report generated: 2026-06-19*
-*Ajitesh Sharma — Hindalco Internship*
+## 8. Conclusion
+MediCare successfully resolves clinic wait inefficiencies by merging scheduling, queue optimization, and automated communications. The rule-based NLP triage and predicted wait time algorithm provide automated primary routing. Completed during a Hindalco internship, this platform establishes a standard framework for modern, patient-first clinical queue tracking.
