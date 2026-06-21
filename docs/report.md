@@ -18,8 +18,20 @@
 
 ---
 
-## 2. System Architecture & Use Case
-The application is built on a clean, decoupled **3-Tier Layered Architecture**:
+## 2. Technical Stack & Justifications
+The application is built on modern web engineering standards chosen for speed, decoupling, and high scalability:
+
+* **Presentation Tier**: HTML5, CSS3 Custom Properties, and Vanilla JS.
+  * *Justification*: By avoiding heavy JS frameworks (like React or Angular), we achieved a zero-build-step frontend that loads instantaneously. Vanilla CSS variables (CSS Custom Properties) provide an elegant, cohesive dark-mode design system with smooth CSS micro-animations. Google Fonts (Inter) provides clean typography.
+* **Application Tier**: Spring Boot 4.0, Java 21, Spring Data JPA, JavaMailSender.
+  * *Justification*: Java 21 brings modern concurrency features. Spring Boot offers a robust, 3-tier layering separating REST Controllers, Service logic, and JPA Repositories. JavaMailSender facilitates quick integration with SMTP services, and Spring DevTools speeds up code updates.
+* **Persistent Storage**: PostgreSQL 15.
+  * *Justification*: A robust, ACID-compliant relational database. PostgreSQL efficiently manages 3NF relations between tables (specializations, doctors, appointments, queue positions) and ensures referential integrity via foreign key constraints.
+
+---
+
+## 3. System Architecture & Use Case
+The application follows a clean **3-Tier Layered Architecture** separating presentation, business logic, and persistent storage layers:
 
 ### Layered Architecture Diagram
 ![System Architecture](../arch_diag/architecture.png)
@@ -40,33 +52,90 @@ graph TD
     end
 ```
 
-### Technical Stack:
-* **Frontend**: Vanilla HTML5, CSS3 Custom Properties (CSS variables, flexbox, grid, glassmorphism), and Vanilla JS (`fetch` API, session store, local storage).
-* **Backend**: Spring Boot 4.0, Java 21, Spring Data JPA, JavaMailSender.
-* **Database**: PostgreSQL 15, 3NF Normalized.
+---
+
+## 4. Initial Scope & Requirements (SRS)
+
+### 4.1 In-Scope Features
+* **Patient Module**: Registration, login, profile management, view doctors/specializations, book consultations, and view queue token information.
+* **Doctor Module**: Login, profile dashboard, view assigned appointments, update appointment status, and view patient queue statistics.
+* **Admin Module**: Manage doctor profiles, patient accounts, clinical specializations, system-wide analytics, and live queue overviews.
+* **Triage & Queue System**: Active queue token numbers, live position counters, and dynamic wait-time indicators.
+
+### 4.2 Out-of-Scope Features
+* Online payment processing gateways.
+* In-app telemedicine video consultation rooms.
+* Electronic Health Record (EHR) management.
+* Insurance claim processing integrations.
+
+### 4.3 Functional Requirements (FR)
+* **User Management**:
+  * **FR-1**: Allow patients to register an account.
+  * **FR-2**: Allow patients to log in and out securely.
+  * **FR-3**: Allow doctors to log in and access their dashboard.
+  * **FR-4**: Allow administrators to log in and access administrative tools.
+* **Patient Management**:
+  * **FR-5**: Patients view/update profile information.
+  * **FR-6**: Patients browse doctors by clinical specialization.
+  * **FR-7**: Patients view individual doctor details.
+* **Appointment Management**:
+  * **FR-8**: Patients book appointments with available doctors.
+  * **FR-9**: Patients cancel appointments.
+  * **FR-10**: System stores appointment details in the database.
+  * **FR-11**: Doctors view their scheduled appointments.
+  * **FR-12**: Doctors update appointment status.
+* **Queue Management**:
+  * **FR-13**: System auto-generates a unique queue token for each appointment.
+  * **FR-14**: System maintains order of patients in the queue.
+  * **FR-15**: Patients view their queue position.
+  * **FR-16**: System calculates estimated waiting times.
+* **Administration**:
+  * **FR-17**: Admins add, update, and remove doctor records.
+  * **FR-18**: Admins manage specializations.
+  * **FR-19**: Admins monitor appointments.
+* **Notification Management**:
+  * **FR-20**: System sends email confirmations after booking.
+  * **FR-21**: System sends appointment status notifications.
+
+### 4.4 Non-Functional Requirements (NFR)
+* **Performance**:
+  * **NFR-1**: Response time under 3 seconds.
+  * **NFR-2**: Support multiple concurrent users.
+* **Security**:
+  * **NFR-3**: User passwords stored with SHA-256 secure hashing.
+  * **NFR-4**: Only authenticated users access protected resources.
+  * **NFR-5**: Role-based authorization implemented.
+* **Reliability & Consistency**:
+  * **NFR-6**: Data consistency maintained.
+  * **NFR-7**: Appointment info persistent, no lost transactions.
+* **Availability**:
+  * **NFR-8**: Available 24/7 except scheduled maintenance.
+* **Usability & Maintainability**:
+  * **NFR-9**: Provide user-friendly, responsive interface.
+  * **NFR-10**: Support modern web browsers (Chrome, Safari, Firefox).
+  * **NFR-11**: Follow modular architecture for future enhancements.
+  * **NFR-12**: Git version control for code changes.
+* **Scalability**:
+  * **NFR-13**: Support future integration of AI wait time prediction and doctor recommendation algorithms.
 
 ---
 
-## 3. Implemented Core & AI Features
+## 5. Security & Secret Management (SMTP Safe-Guards)
+To comply with professional software engineering safety practices, **SMTP credentials are not hardcoded or checked into Git**:
 
-### 3.1 Core Features Checklist
-* **Role-Based Login & Security**: Separate portal layers for Patients, Doctors, and System Admins. Hashed credentials protect resources.
-* **Doctor Schedule & Availability**: Custom time-slots created by doctors, searchable by specialization.
-* **Token Allocation**: Real-time incrementing patient token numbers grouped by doctor per day.
-* **Queue Triage Engine**: Auto-calculation of initial wait times and positions.
-* **Patient Overview widget**: Live queue status updates automatically without requiring separate checks.
-* **Doctor Reschedule tool**: Doctors can change appointment slots, modifying the queue dynamically.
-
-### 3.2 Security Email Alert System
-* **Appointment Confirmed**: Sent immediately upon booking.
-* **Login Security Alert**: Triggers on successful logins for Admins, Doctors, or Patients, reporting role, timestamps, and origin.
-* **Reschedule Notification**: Alerts the patient of schedule adjustments made by the physician.
+1. **Ignored Configuration File**: Created a classpath resource `application-secret.properties` to house the username and SMTP password.
+2. **Properties Import**: Added a dynamic configuration import rule inside `application.properties`:
+   ```properties
+   spring.config.import=optional:classpath:application-secret.properties
+   ```
+3. **Git Ignore Rule**: The pattern `**/application-secret.properties` is appended to `.gitignore`, preventing credentials from being staged.
+4. **Git Purge**: Used soft resets to clear previous credential-bearing commits from version history, completing a force push to scrub history logs completely.
 
 ---
 
-## 4. AI Feature & Triage Algorithms
+## 6. AI Feature & Triage Algorithms
 
-### 4.1 Wait Time Prediction
+### 6.1 Wait Time Prediction
 * **Location**: `QueueService.predictWaitTime(doctorId)`
 * **Algorithm Description**: Wait times are calculated using doctor-specific average consultation times, current waiting list length, and a dynamic load coefficient adjusting for queue congestion:
 
@@ -82,7 +151,7 @@ Where:
 
 ---
 
-### 4.2 NLP Triage & Specialty Recommender
+### 6.2 NLP Triage & Specialty Recommender
 * **Location**: `DoctorService.runTriageAnalysis(symptoms)`
 * **Algorithm Description**: Regular expression keyword mapping matches patient-described symptoms directly to corresponding specialties and priority levels:
 
@@ -101,7 +170,7 @@ Where:
 
 ---
 
-## 5. Database Schema Design (3NF)
+## 7. Database Schema Design (3NF)
 All PostgreSQL tables are fully normalized to the Third Normal Form (3NF) to eliminate transitive dependencies and update anomalies:
 
 ### Entity-Relationship Diagram (ERD)
@@ -126,29 +195,29 @@ doctor         (1) ─── (N) doctor_availability
 
 ---
 
-## 6. System Walkthrough & Screenshots
+## 8. System Walkthrough & Screenshots
 
-### 6.1 Landing Page (`index.html`)
+### 8.1 Landing Page (`index.html`)
 ![Landing Page](../arch_diag/ss_landing.png)
 *Medicare landing page showing system benefits, live statistic mockups, and symptom search recommendations.*
 
-### 6.2 Patient Registration (`register.html`)
+### 8.2 Patient Registration (`register.html`)
 ![Patient Registration](../arch_diag/ss_register.png)
 *Secure registration form gathering name, email, phone number, gender, date of birth, and password.*
 
-### 6.3 Sign In Portal (`login.html`)
+### 8.3 Sign In Portal (`login.html`)
 ![Sign In](../arch_diag/ss_login.png)
 *Unified sign-in interface allowing role selection (Patient/Doctor/Admin) with tab switches.*
 
-### 6.4 Patient Overview Dashboard (`dashboard.html`)
+### 8.4 Patient Overview Dashboard (`dashboard.html`)
 ![Patient Dashboard](../arch_diag/ss_dashboard.png)
 *Initial overview screen indicating system statistics and recent consultation logs.*
 
-### 6.5 Automated Live Queue Card
+### 8.5 Automated Live Queue Card
 ![Dashboard with Queue card](../arch_diag/ss_dashboard_queue.png)
 *Overview dashboard with the automated Live Queue Status card that updates every 5 seconds.*
 
-### 6.6 Doctor Appointments & Actions (`doctor.html`)
+### 8.6 Doctor Appointments & Actions (`doctor.html`)
 ![Doctor Dashboard](../arch_diag/ss_doctors.png)
 *Doctor portal displaying active consultations, triage alerts, and diagnostic controls.*
 
@@ -156,13 +225,13 @@ doctor         (1) ─── (N) doctor_availability
 ![Reschedule Modal](../arch_diag/ss_reschedule_modal.png)
 *Rescheduling window displaying slot availabilities. Confirming frees the previous slot and updates the queue.*
 
-### 6.8 System Admin Dashboard (`admin.html`)
+### 8.8 System Admin Dashboard (`admin.html`)
 ![Admin Dashboard](../arch_diag/ss_admin.png)
 *Control panel for platform administrators showing system analytics, doctor registration, and queue oversight.*
 
 ---
 
-## 7. Software Engineering Best Practices
+## 9. Software Engineering Best Practices
 * **Single Responsibility Principle (SRP)**: Separated REST endpoints, service orchestration, database mapping, and mail dispatch into independent layers.
 * **DRY (Don't Repeat Yourself)**: Shared utilities (formatting, API handling) centralized in `app.js`.
 * **CORS Middleware**: Dynamic configurations allowed secure cross-origin HTTP operations from localhost:3000 to localhost:8080.
@@ -170,5 +239,5 @@ doctor         (1) ─── (N) doctor_availability
 
 ---
 
-## 8. Conclusion
+## 10. Conclusion
 MediCare successfully resolves clinic wait inefficiencies by merging scheduling, queue optimization, and automated communications. The rule-based NLP triage and predicted wait time algorithm provide automated primary routing. Completed during a Hindalco internship, this platform establishes a standard framework for modern, patient-first clinical queue tracking.
